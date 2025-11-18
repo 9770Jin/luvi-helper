@@ -1,0 +1,20 @@
+const mongoose = require('mongoose');
+
+const reminderSchema = new mongoose.Schema({
+  userId: { type: String },
+  guildId: { type: String },
+  cardId: { type: String },
+  channelId: { type: String, required: true },
+  remindAt: { type: Date, required: true, index: true },
+  type: { type: String, required: true, enum: ['expedition', 'stamina', 'raid'] },
+  reminderMessage: { type: String, required: true },
+  
+});
+
+// Unique index for expedition reminders (userId + cardId)
+reminderSchema.index({ userId: 1, cardId: 1 }, { unique: true, partialFilterExpression: { type: 'expedition' } });
+
+// Unique index for stamina and raid reminders (userId + type)
+reminderSchema.index({ userId: 1, type: 1 }, { unique: true, partialFilterExpression: { type: { $in: ['stamina', 'raid'] } } });
+
+module.exports = mongoose.model('Reminder', reminderSchema);

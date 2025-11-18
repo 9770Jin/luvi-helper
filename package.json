@@ -1,0 +1,17 @@
+{
+  "name": "luvi-helper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "dotenv": "^17.2.0",
+    "mongoose": "^8.16.2",
+    "pm2": "^6.0.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
