@@ -24,6 +24,10 @@ module.exports = {
         .setRequired(false)),
 
   async execute(interaction) {
+    if (!interaction.inGuild()) {
+      return interaction.reply({ content: 'This command can only be used in a server.', flags: 1 << 6 });
+    }
+
     const botOwnerId = '640517686480338948';
     if (
       !interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles) &&

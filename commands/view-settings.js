@@ -9,6 +9,10 @@ module.exports = {
     .setDescription('View current boss tier and card ping roles'),
 
   async execute(interaction) {
+    if (!interaction.inGuild()) {
+      return interaction.reply({ content: 'This command can only be used in a server.', flags: 1 << 6 });
+    }
+
     const member = interaction.member;
 
     const hasPermission =

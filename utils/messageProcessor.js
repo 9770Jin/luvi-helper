@@ -90,7 +90,7 @@ async function processMessage(message) {
               type: 'raid',
               reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again.\n-# you can configure your notifications via /notifications set/view`,
             });
-            await sendLog(`[RAID REMINDER SET] User: ${userId}, Channel: ${message.channel.id}, In: ${Math.round(fatigueMillis / 1000)}s`);
+            await sendLog(`[RAID REMINDER SET] User: ${userId}, Channel: ${message.channel.id}, In: ${Math.round(fatigueMillis / 1000)}s, Message ID: ${message.id}, Message Link: ${message.url}`);
           } catch (error) {
             if (error.code === 11000) {
               // Suppress duplicate key errors
@@ -135,7 +135,7 @@ async function processMessage(message) {
                 type: 'expedition',
                 reminderMessage: `<@${userId}>, your expedition cards are ready to be claimed!\n-# Use \`@luvi exps\` or \`/expeditions\` again for the bot to remind you next time.\n-# you can configure your notifications via /notifications set/view`, 
               });
-              await sendLog(`[REMINDER SET] User: ${userId}, Card: ${card.cardName} (${card.cardId}), Channel: ${message.channel.id}`);
+              await sendLog(`[EXPEDITION REMINDER SET] User: ${userId}, Card: ${card.cardName} (${card.cardId}), Channel: ${message.channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
             } catch (error) {
               if (error.code === 11000) {
                 console.log(`[INFO] Suppressed duplicate key error for expedition reminder. User: ${userId}, Card: ${card.cardId}`);

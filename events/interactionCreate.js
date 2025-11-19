@@ -15,9 +15,9 @@ module.exports = {
             } catch (error) {
                 console.error(`Error executing command ${interaction.commandName}:`, error);
                 if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
+                    await interaction.followUp({ content: 'There was an error executing this command!', flags: 1 << 6 });
                 } else {
-                    await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+                    await interaction.reply({ content: 'There was an error executing this command!', flags: 1 << 6 });
                 }
             }
         } else if (interaction.isButton()) {
@@ -28,10 +28,10 @@ module.exports = {
                 const mentionedUserId = mentionedUserIdMatch ? mentionedUserIdMatch[1] : null;
 
                 if (mentionedUserId && user.id !== mentionedUserId) {
-                    return interaction.reply({ content: "You can't interact with this button.", ephemeral: true });
+                    return interaction.reply({ content: "You can't interact with this button.", flags: 1 << 6 });
                 }
 
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: 1 << 6 });
 
                 const percentage = parseInt(customId.split('_')[1], 10);
                 const maxStamina = 50;
@@ -59,7 +59,7 @@ module.exports = {
                     });
 
                     await interaction.editReply({ content: confirmationMessage });
-                    await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}`);
+                    await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
 
                     const originalMessage = interaction.message;
                     const disabledRow = new ActionRowBuilder()

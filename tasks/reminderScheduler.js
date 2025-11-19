@@ -3,6 +3,7 @@ const { getUserSettings, getUserSettingsCache } = require('../utils/userSettings
 const { sendLog, sendError } = require('../utils/logger');
 
 async function checkReminders(client) {
+  const startTime = Date.now();
   try {
     const now = new Date();
     const dueReminders = await Reminder.find({ remindAt: { $lte: now } });
@@ -25,52 +26,71 @@ async function checkReminders(client) {
       return acc;
     }, {});
 
+    const sendPromises = [];
+    const remindersToDelete = [];
+
     for (const key in remindersToProcess) {
       const reminderData = remindersToProcess[key];
-      try {
-        const userSettings = getUserSettings(reminderData.userId);
-        const sendReminder = !userSettings || userSettings[reminderData.type] !== false;
+      remindersToDelete.push(...reminderData.reminderIds);
 
-        if (reminderData.type === 'raid') {
+      const sendPromise = (async () => {
+        try {
+          const userSettings = getUserSettings(reminderData.userId);
+          const sendReminder = !userSettings || userSettings[reminderData.type] !== false;
+          const sendInDm = userSettings && userSettings.dmNotifications;
+
           if (sendReminder) {
-            const user = await client.users.fetch(reminderData.userId);
-            if (user) {
-              await user.send(reminderData.reminderMessage);
-              await sendLog(`[RAID REMINDER SENT] User: ${reminderData.userId} via DM`);
+            if (reminderData.type === 'raid' || sendInDm) {
+              const user = await client.users.fetch(reminderData.userId);
+              if (user) {
+                await user.send(reminderData.reminderMessage);
+                await sendLog(`[REMINDER SENT] User: ${reminderData.userId} via DM`);
+              }
+            } else {
+              const channel = await client.channels.fetch(reminderData.channelId);
+              if (channel) {
+                await channel.send(reminderData.reminderMessage);
+                await sendLog(`[REMINDER SENT] User: ${reminderData.userId} in Channel: ${reminderData.channelId}`);
+              }
             }
           }
-        } else { // expedition and stamina
-          if (sendReminder) {
-            const channel = await client.channels.fetch(reminderData.channelId);
-            if (channel) {
-              await channel.send(reminderData.reminderMessage);
-              await sendLog(`[REMINDER SENT] User: ${reminderData.userId} in Channel: ${reminderData.channelId}`);
-            }
+        } catch (error) {
+          if (error.code === 50007) { // Cannot send messages to this user
+            console.log(`User ${reminderData.userId} cannot be DMed. Deleting reminder.`);
+          } else {
+            console.error(`Failed to send reminder for user ${reminderData.userId}:`, error);
+            await sendError(`[ERROR] Failed to send reminder for user ${reminderData.userId}:\n${error.message}`);
           }
         }
-      } catch (error) {
-        console.error(`Failed to send reminder for user ${reminderData.userId}:`, error);
-        await sendError(`[ERROR] Failed to send reminder for user ${reminderData.userId}:\n${error.message}`);
-      }
+      })();
+      sendPromises.push(sendPromise);
+    }
 
-      // Clean up all processed reminders for this user and message
+    await Promise.all(sendPromises);
+
+    // Clean up all processed reminders
+    if (remindersToDelete.length > 0) {
       try {
-        await Reminder.deleteMany({ _id: { $in: reminderData.reminderIds } });
+        await Reminder.deleteMany({ _id: { $in: remindersToDelete } });
       } catch (error) {
-        console.error(`Failed to delete reminders for user ${reminderData.userId}:`, error);
-        await sendError(`[ERROR] Failed to delete reminders for user ${reminderData.userId}:\n${error.message}`);
+        console.error(`Failed to delete reminders:`, error);
+        await sendError(`[ERROR] Failed to delete reminders:\n${error.message}`);
       }
     }
+
   } catch (error) {
     console.error(`[ERROR] Error in checkReminders: ${error.message}`, error);
   }
+  const endTime = Date.now();
+  sendLog(`[SCHEDULER] checkReminders took ${endTime - startTime}ms to run.`);
 }
 
 function startScheduler(client) {
-  // Check every 5 seconds
-  setInterval(() => checkReminders(client), 5 * 1000);
+  // Check every 10 seconds
+  (function schedule() {
+    checkReminders(client).finally(() => setTimeout(schedule, 10 * 1000));
+  })();
   sendLog('[SCHEDULER] Reminder scheduler started.');
 }
 
 module.exports = { startScheduler };
-

@@ -21,7 +21,8 @@ module.exports = {
             .addChoices(
               { name: 'Expedition', value: 'expedition' },
               { name: 'Stamina', value: 'stamina' },
-              { name: 'Raid', value: 'raid' }
+              { name: 'Raid', value: 'raid' },
+              { name: 'DM Notifications', value: 'dmNotifications' }
             ))
         .addBooleanOption(option =>
           option.setName('enabled')
@@ -35,7 +36,7 @@ module.exports = {
     if (subcommand === 'view') {
       let settings = getUserSettings(userId);
       if (!settings) {
-        settings = { expedition: true, stamina: true, raid: true };
+        settings = { expedition: true, stamina: true, raid: true, dmNotifications: false };
       }
 
       await interaction.reply({
@@ -45,10 +46,11 @@ module.exports = {
             { name: 'Expedition', value: settings.expedition ? 'Enabled' : 'Disabled', inline: true },
             { name: 'Stamina', value: settings.stamina ? 'Enabled' : 'Disabled', inline: true },
             { name: 'Raid', value: settings.raid ? 'Enabled' : 'Disabled', inline: true },
+            { name: 'DM Notifications', value: settings.dmNotifications ? 'Enabled' : 'Disabled', inline: true },
           ],
           color: 0x5865F2,
         }],
-        ephemeral: true,
+        flags: 1 << 6,
       });
     } else if (subcommand === 'set') {
       const type = interaction.options.getString('type');
@@ -56,9 +58,16 @@ module.exports = {
 
       await updateUserSettings(userId, { [type]: enabled });
 
+      let replyContent;
+      if (type === 'dmNotifications') {
+        replyContent = `You will now ${enabled ? 'receive' : 'stop receiving'} stamina and expedition reminders in your DMs.`;
+      } else {
+        replyContent = `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
+      }
+
       await interaction.reply({
-        content: `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`,
-        ephemeral: true,
+        content: replyContent,
+        flags: 1 << 6,
       });
     }
   },
