@@ -11,7 +11,7 @@ async function checkReminders(client) {
     if (dueReminders.length === 0) return;
 
     const remindersToProcess = dueReminders.reduce((acc, reminder) => {
-      const key = reminder.type === 'raid_reset' ? `${reminder.guildId}-${reminder.type}` : `${reminder.userId}-${reminder.reminderMessage}`;
+      const key = `${reminder.userId}-${reminder.reminderMessage}`;
       if (!acc[key]) {
         acc[key] = {
           userId: reminder.userId,
@@ -57,6 +57,10 @@ async function checkReminders(client) {
         } catch (error) {
           if (error.code === 50007) { // Cannot send messages to this user
             console.log(`User ${reminderData.userId} cannot be DMed. Deleting reminder.`);
+          } else if (error.code === 10003) { // Unknown Channel
+            console.log(`Channel ${reminderData.channelId} for user ${reminderData.userId} not found. Deleting reminder.`);
+          } else if (error.code === 50001) { // Missing Access
+            console.log(`Missing access to channel ${reminderData.channelId} for user ${reminderData.userId}. Deleting reminder.`);
           } else {
             console.error(`Failed to send reminder for user ${reminderData.userId}:`, error);
             await sendError(`[ERROR] Failed to send reminder for user ${reminderData.userId}:\n${error.message}`);

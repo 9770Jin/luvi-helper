@@ -115,7 +115,11 @@ For bugs or suggestions, join the support server (link in bio).
     await defaultChannel.send(guideMessage);
     console.log(`Sent setup guide message in guild ${guild.name}`);
   } catch (error) {
-    console.error(`Failed to send setup message in guild ${guild.name}:`, error);
+    if (error.code === 50001) { // Missing Access
+      console.warn(`[WARN] Could not send welcome message in ${guild.name}. The bot may be missing 'Send Messages' permissions in all accessible text channels.`);
+    } else {
+      console.error(`Failed to send setup message in guild ${guild.name}:`, error);
+    }
   }
 });
 

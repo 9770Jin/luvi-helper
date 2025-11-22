@@ -14,10 +14,14 @@ module.exports = {
                 await command.execute(interaction);
             } catch (error) {
                 console.error(`Error executing command ${interaction.commandName}:`, error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error executing this command!', flags: 1 << 6 });
-                } else {
-                    await interaction.reply({ content: 'There was an error executing this command!', flags: 1 << 6 });
+                try {
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
+                    } else {
+                        await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+                    }
+                } catch (e) {
+                    console.error(`Error sending error reply for ${interaction.commandName}:`, e);
                 }
             }
         } else if (interaction.isButton()) {
@@ -68,11 +72,23 @@ module.exports = {
                             new ButtonBuilder().setCustomId('stamina_50').setLabel('Remind at 50% Stamina').setStyle(ButtonStyle.Primary).setDisabled(true),
                             new ButtonBuilder().setCustomId('stamina_100').setLabel('Remind at 100% Stamina').setStyle(ButtonStyle.Primary).setDisabled(true),
                         );
-                    await originalMessage.edit({ components: [disabledRow] });
+                    try {
+                        await originalMessage.edit({ components: [disabledRow] });
+                    } catch (e) {
+                        if (e.code === 10008) { // Unknown Message
+                            console.log(`Failed to disable buttons: message was deleted.`);
+                        } else {
+                            console.error('Failed to disable buttons:', e);
+                        }
+                    }
                 } catch (error) {
                     console.error(`[ERROR] Failed to create stamina reminder: ${error.message}`, error);
                     await sendError(`[ERROR] Failed to create stamina reminder: ${error.message}`);
-                    await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
+                    try {
+                        await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
+                    } catch (e) {
+                        console.error('Failed to send error message for stamina reminder:', e);
+                    }
                 }
             }
         }
