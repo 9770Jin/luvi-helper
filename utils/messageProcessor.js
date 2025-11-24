@@ -92,7 +92,7 @@ async function processMessage(message) {
               channelId: message.channel.id,
               remindAt,
               type: 'raid',
-              reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again.\n-# you can configure your notifications via /notifications set/view`,
+              reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again. </raid attack:1404667045332910220>\n-# you can configure your notifications via /notifications set/view`,
             });
             await sendLog(`[RAID REMINDER SET] User: ${userId}, Channel: ${message.channel.id}, In: ${formatDuration(fatigueMillis)}, Message ID: ${message.id}, Message Link: ${message.url}`);
           } catch (error) {
@@ -162,7 +162,7 @@ async function processMessage(message) {
               channelId: message.channel.id,
               remindAt,
               type: 'expedition',
-              reminderMessage: `<@${userId}>, your expedition cards are ready to be claimed! </expeditions:1426499105936379922>\n-# Use \`@luvi exps\` or \`/expeditions\` again for the bot to remind you next time.\n-# you can configure your notifications via /notifications set/view`,
+              reminderMessage: `<@${userId}>, your expedition cards are ready to be claimed! \n-# Use \`@luvi exps\` or \`</expeditions:1426499105936379922>\` again for the bot to remind you next time.\n-# you can configure your notifications via /notifications set/view`,
             });
             await sendLog(`[EXPEDITION REMINDER SET] User: ${userId}, Max Card: ${maxCard.cardName} (${maxCard.cardId}), In: ${formatDuration(maxCard.remainingMillis)}, Channel: ${message.channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
           } catch (error) {

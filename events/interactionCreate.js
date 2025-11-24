@@ -58,7 +58,7 @@ module.exports = {
                         channelId: channel.id,
                         remindAt,
                         type: 'stamina',
-                        reminderMessage: `<@${user.id}>, your stamina has regenerated to ${percentage}%!\n-# you can configure your notifications via /notifications set/view`
+                        reminderMessage: `<@${user.id}>, your stamina has regenerated to ${percentage}%! Time to </clash:1426499105936379915>\n-# you can configure your notifications via /notifications set/view`
                     });
 
                     await interaction.editReply({ content: confirmationMessage });
