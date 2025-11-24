@@ -1,7 +1,7 @@
-const { 
-  parseBossEmbed, 
-  parseCardEmbed, 
-  parseExpeditionEmbed, 
+const {
+  parseBossEmbed,
+  parseCardEmbed,
+  parseExpeditionEmbed,
   parseRaidViewEmbed,
 } = require('./embedParser');
 
@@ -9,11 +9,15 @@ const { getSettings, updateSettings } = require('./settingsManager');
 const Reminder = require('../models/Reminder');
 const { sendLog, sendError } = require('./logger');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { setTimer } = require('./timerManager');
 
 const LUVI_ID = '1269481871021047891';
 
 async function processMessage(message) {
   if (!message.guild || message.author.id !== LUVI_ID) return;
+
+  // Ignore messages older than 60 seconds to prevent processing stale events
+  if (Date.now() - message.createdTimestamp > 60000) return;
 
   try {
     // === STAMINA DETECTION ===
@@ -83,14 +87,14 @@ async function processMessage(message) {
 
         if (!existingReminder) {
           try {
-            await Reminder.create({
+            await setTimer(message.client, {
               userId,
               channelId: message.channel.id,
               remindAt,
               type: 'raid',
               reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again.\n-# you can configure your notifications via /notifications set/view`,
             });
-            await sendLog(`[RAID REMINDER SET] User: ${userId}, Channel: ${message.channel.id}, In: ${Math.round(fatigueMillis / 1000)}s, Message ID: ${message.id}, Message Link: ${message.url}`);
+            await sendLog(`[RAID REMINDER SET] User: ${userId}, Channel: ${message.channel.id}, In: ${formatDuration(fatigueMillis)}, Message ID: ${message.id}, Message Link: ${message.url}`);
           } catch (error) {
             if (error.code === 11000) {
               // Suppress duplicate key errors
@@ -122,28 +126,48 @@ async function processMessage(message) {
 
       if (userId) {
         const now = Date.now();
+
+        // Find the card with the maximum remaining time
+        let maxCard = null;
         for (const card of expeditionInfo.cards) {
-          const existingReminder = await Reminder.findOne({ userId, cardId: card.cardId });
-          if (!existingReminder) {
-            try {
-              const remindAt = new Date(now + card.remainingMillis);
-              await Reminder.create({
-                userId,
-                cardId: card.cardId,
-                channelId: message.channel.id,
-                remindAt,
-                type: 'expedition',
-                reminderMessage: `<@${userId}>, your expedition cards are ready to be claimed!\n-# Use \`@luvi exps\` or \`/expeditions\` again for the bot to remind you next time.\n-# you can configure your notifications via /notifications set/view`, 
-              });
-              await sendLog(`[EXPEDITION REMINDER SET] User: ${userId}, Card: ${card.cardName} (${card.cardId}), Channel: ${message.channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
-            } catch (error) {
-              if (error.code === 11000) {
-                console.log(`[INFO] Suppressed duplicate key error for expedition reminder. User: ${userId}, Card: ${card.cardId}`);
-              } else {
-                console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
-                await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
+          if (!maxCard || card.remainingMillis > maxCard.remainingMillis) {
+            maxCard = card;
+          }
+        }
+
+        if (maxCard) {
+          try {
+            const remindAt = new Date(now + maxCard.remainingMillis);
+
+            // Check for existing expedition reminder
+            const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
+
+            if (existingReminder) {
+              const timeDiff = Math.abs(existingReminder.remindAt.getTime() - remindAt.getTime());
+              // If the difference is less than 1 minute (60000ms), assume it's the same reminder and do nothing
+              // This accounts for drift caused by parsing relative time strings from potentially stale embeds
+              if (timeDiff < 60000) {
+                console.log(`[EXPEDITION] Reminder already exists and is accurate for user ${userId}. Skipping.`);
+                return;
               }
+
+              // We no longer explicitly delete the timer here because setTimer now handles updates (upsert)
+              // preserving the existing ID.
             }
+
+            await setTimer(message.client, {
+              userId,
+              // cardId is no longer strictly needed for uniqueness but good for reference
+              cardId: maxCard.cardId,
+              channelId: message.channel.id,
+              remindAt,
+              type: 'expedition',
+              reminderMessage: `<@${userId}>, your expedition cards are ready to be claimed!\n-# Use \`@luvi exps\` or \`/expeditions\` again for the bot to remind you next time.\n-# you can configure your notifications via /notifications set/view`,
+            });
+            await sendLog(`[EXPEDITION REMINDER SET] User: ${userId}, Max Card: ${maxCard.cardName} (${maxCard.cardId}), In: ${formatDuration(maxCard.remainingMillis)}, Channel: ${message.channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
+          } catch (error) {
+            console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
+            await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
           }
         }
       } else {
@@ -159,6 +183,9 @@ async function processMessage(message) {
 
 async function processBossAndCardMessage(message) {
   if (!message.guild || message.author.id !== LUVI_ID || !message.embeds.length) return;
+
+  // Ignore messages older than 60 seconds to prevent processing stale events
+  if (Date.now() - message.createdTimestamp > 60000) return;
 
   try {
     const embed = message.embeds[0];
@@ -226,6 +253,18 @@ async function processBossAndCardMessage(message) {
   } catch (error) {
     console.error(`[ERROR] Unhandled error in processBossAndCardMessage: ${error.message}`, error);
   }
+}
+
+function formatDuration(ms) {
+  const seconds = Math.floor((ms / 1000) % 60);
+  const minutes = Math.floor((ms / (1000 * 60)) % 60);
+  const hours = Math.floor((ms / (1000 * 60 * 60)));
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0) parts.push(`${seconds}s`);
+  return parts.join(' ') || '0s';
 }
 
 module.exports = { processMessage, processBossAndCardMessage };

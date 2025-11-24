@@ -1,16 +1,16 @@
 require('dotenv').config();
-const { 
-  Client, 
-  GatewayIntentBits, 
-  Collection, 
-  Events, 
+const {
+  Client,
+  GatewayIntentBits,
+  Collection,
+  Events,
   PermissionsBitField,
   ActivityType
 } = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
-const { startScheduler } = require('./tasks/reminderScheduler');
+const { initTimerManager } = require('./utils/timerManager');
 const { initializeSettings } = require('./utils/settingsManager');
 const { initializeUserSettings } = require('./utils/userSettingsManager');
 
@@ -42,13 +42,13 @@ const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
 for (const file of eventFiles) {
-    const filePath = path.join(eventsPath, file);
-    const event = require(filePath);
-    if (event.once) {
-        client.once(event.name, (...args) => event.execute(...args));
-    } else {
-        client.on(event.name, (...args) => event.execute(...args));
-    }
+  const filePath = path.join(eventsPath, file);
+  const event = require(filePath);
+  if (event.once) {
+    client.once(event.name, (...args) => event.execute(...args));
+  } else {
+    client.on(event.name, (...args) => event.execute(...args));
+  }
 }
 
 // Load event handlers
@@ -70,7 +70,7 @@ client.on(Events.GuildCreate, async (guild) => {
   try {
     // Find first text channel where bot can send messages
     const defaultChannel = guild.channels.cache
-      .filter(ch => 
+      .filter(ch =>
         ch.type === 0 && // text channel
         ch.permissionsFor(guild.members.me).has(PermissionsBitField.Flags.SendMessages)
       )
@@ -139,18 +139,18 @@ For bugs or suggestions, join the support server (link in bio).
     }
 
     client.once(Events.ClientReady, async readyClient => {
-        console.log(`Bot logged in as ${readyClient.user.tag}`);
-        await initializeSettings();
-        await initializeUserSettings();
-        startScheduler(readyClient);
+      console.log(`Bot logged in as ${readyClient.user.tag}`);
+      await initializeSettings();
+      await initializeUserSettings();
+      initTimerManager(readyClient);
 
         const updateStatus = () => {
           const serverCount = readyClient.guilds.cache.size;
           readyClient.user.setActivity(`Luvi bot in ${serverCount} servers`, { type: ActivityType.Watching });
         };
 
-        updateStatus(); // Set status immediately
-        setInterval(updateStatus, 300000); // Update every 5 minutes
+      updateStatus(); // Set status immediately
+      setInterval(updateStatus, 300000); // Update every 5 minutes
     });
 
     await client.login(process.env.BOT_TOKEN);

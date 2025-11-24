@@ -1,0 +1,152 @@
+const Reminder = require('../models/Reminder');
+const { getUserSettings } = require('./userSettingsManager');
+const { sendLog, sendError } = require('./logger');
+const { getGuildChannel } = require('./messageUtils');
+
+const timeoutMap = new Map();
+
+/**
+ * Sets a new timer.
+ * @param {import('discord.js').Client} client 
+ * @param {Object} reminderData 
+ */
+const setTimer = async (client, reminderData) => {
+    try {
+        // Use findOneAndUpdate with upsert to update existing reminder or create new one
+        // This keeps the _id stable if the reminder already exists
+        const reminder = await Reminder.findOneAndUpdate(
+            { userId: reminderData.userId, type: reminderData.type },
+            reminderData,
+            { upsert: true, new: true }
+        );
+
+        scheduleNotification(client, reminder);
+        return reminder;
+    } catch (error) {
+        console.error('[TimerManager] Error creating timer:', error);
+        throw error;
+    }
+};
+
+/**
+ * Deletes a timer by ID.
+ * @param {string} reminderId 
+ */
+const deleteTimer = async (reminderId) => {
+    try {
+        await Reminder.findByIdAndDelete(reminderId);
+
+        if (timeoutMap.has(reminderId)) {
+            clearTimeout(timeoutMap.get(reminderId));
+            timeoutMap.delete(reminderId);
+        }
+    } catch (error) {
+        console.error(`[TimerManager] Error deleting timer ${reminderId}:`, error);
+    }
+};
+
+/**
+ * Schedules the notification for a reminder.
+ * @param {import('discord.js').Client} client 
+ * @param {Object} reminder 
+ */
+const scheduleNotification = (client, reminder) => {
+    const now = Date.now();
+    const delay = new Date(reminder.remindAt).getTime() - now;
+
+    if (delay <= 0) {
+        triggerNotification(client, reminder._id);
+    } else {
+        // If there's already a timeout for this reminder (shouldn't happen usually but good for safety), clear it
+        if (timeoutMap.has(reminder._id.toString())) {
+            clearTimeout(timeoutMap.get(reminder._id.toString()));
+        }
+
+        const timeoutId = setTimeout(() => {
+            triggerNotification(client, reminder._id);
+        }, delay);
+
+        timeoutMap.set(reminder._id.toString(), timeoutId);
+    }
+};
+
+/**
+ * Triggers the notification and cleans up.
+ * @param {import('discord.js').Client} client 
+ * @param {string} reminderId 
+ */
+const triggerNotification = async (client, reminderId) => {
+    const idStr = reminderId.toString();
+    if (timeoutMap.has(idStr)) {
+        timeoutMap.delete(idStr);
+    }
+
+    try {
+        const reminder = await Reminder.findById(reminderId);
+        if (!reminder) {
+            // console.log(`[TimerManager] Reminder ${reminderId} not found in DB (likely deleted).`);
+            return;
+        }
+
+        // --- Notification Logic (Extracted from old scheduler) ---
+        const userSettings = getUserSettings(reminder.userId);
+        const sendReminder = !userSettings || userSettings[reminder.type] !== false;
+        const sendInDm = userSettings && userSettings.dmNotifications;
+
+        if (sendReminder) {
+            try {
+                if (reminder.type === 'raid' || sendInDm) {
+                    const user = await client.users.fetch(reminder.userId);
+                    if (user) {
+                        await user.send(reminder.reminderMessage);
+                        await sendLog(`[REMINDER SENT] User: ${reminder.userId} via DM`);
+                    }
+                } else {
+                    const channel = await getGuildChannel(client, reminder.channelId);
+                    if (channel) {
+                        await channel.send(reminder.reminderMessage);
+                        await sendLog(`[REMINDER SENT] User: ${reminder.userId} in Channel: ${reminder.channelId}`);
+                    } else {
+                        console.log(`Channel ${reminder.channelId} not found or inaccessible.`);
+                    }
+                }
+            } catch (error) {
+                if (error.code === 50007) { // Cannot send messages to this user
+                    console.log(`User ${reminder.userId} cannot be DMed.`);
+                } else {
+                    console.error(`Failed to send reminder for user ${reminder.userId}:`, error);
+                    await sendError(`[ERROR] Failed to send reminder for user ${reminder.userId}:\n${error.message}`);
+                }
+            }
+        }
+
+        // Delete from DB after triggering
+        await Reminder.findByIdAndDelete(reminderId);
+
+    } catch (error) {
+        console.error(`[TimerManager] Error triggering notification for ${reminderId}:`, error);
+    }
+};
+
+/**
+ * Initializes the timer manager by loading pending reminders from DB.
+ * @param {import('discord.js').Client} client 
+ */
+const initTimerManager = async (client) => {
+    try {
+        const pendingReminders = await Reminder.find({});
+        console.log(`[TimerManager] Loaded ${pendingReminders.length} pending reminders.`);
+
+        for (const reminder of pendingReminders) {
+            scheduleNotification(client, reminder);
+        }
+    } catch (error) {
+        console.error('[TimerManager] Error initializing:', error);
+    }
+};
+
+module.exports = {
+    setTimer,
+    deleteTimer,
+    initTimerManager
+};

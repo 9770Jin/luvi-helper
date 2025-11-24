@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const Reminder = require('../models/Reminder');
+const { setTimer } = require('../utils/timerManager');
 const { sendLog, sendError } = require('../utils/logger');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
@@ -48,13 +49,11 @@ module.exports = {
                     let confirmationMessage = `You will be reminded when your stamina reaches ${percentage}%.`;
 
                     if (existingReminder) {
-                        await Reminder.deleteOne({ _id: existingReminder._id });
-                        confirmationMessage = `Your previous stamina reminder was overwritten. You will now be reminded when when your stamina reaches ${percentage}%.`;
-                    } else {
-                        confirmationMessage = `You will be reminded when your stamina reaches ${percentage}%.`;
+                        // We no longer manually delete. setTimer will update it in place.
+                        confirmationMessage = `Your previous stamina reminder was overwritten. You will now be reminded when your stamina reaches ${percentage}%.`;
                     }
 
-                    await Reminder.create({
+                    await setTimer(interaction.client, {
                         userId: user.id,
                         channelId: channel.id,
                         remindAt,
