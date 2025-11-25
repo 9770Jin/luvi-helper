@@ -176,6 +176,61 @@ async function processMessage(message) {
       return;
     }
 
+    // === RAID SPAWN DETECTION ===
+    const title = (embed.title || "").toLowerCase();
+    const description = (embed.description || "").toLowerCase();
+
+    if (title.includes("raid spawned") || description.includes("raid spawned")) {
+      let userId = null;
+
+      // 1. Check if it was a slash command interaction
+      if (message.interaction?.user?.id) {
+        userId = message.interaction.user.id;
+      }
+      // 2. Fallback: Check recent text messages
+      else {
+        try {
+          const messages = await message.channel.messages.fetch({ limit: 10 });
+          const spawnMsg = messages.find(m =>
+            !m.author.bot &&
+            /\braid\s+spawn\b/i.test(m.content) &&
+            (Date.now() - m.createdTimestamp < 15000) // Within last 15 seconds
+          );
+          if (spawnMsg) {
+            userId = spawnMsg.author.id;
+          }
+        } catch (err) {
+          console.error("Failed to fetch messages for raid spawn check:", err);
+        }
+      }
+
+      if (userId) {
+        const thirtyMinutes = 30 * 60 * 1000;
+        const remindAt = new Date(Date.now() + thirtyMinutes);
+
+        try {
+          await setTimer(message.client, {
+            userId,
+            channelId: message.channel.id,
+            remindAt,
+            type: 'raid_spawn',
+            reminderMessage: `<@${userId}>, your raid spawn cooldown is up! You can spawn another raid.</raid spawn:1404667045332910220>\n-# you can configure your notifications via /notifications set/view`
+          });
+          await sendLog(`[RAID SPAWN COOLDOWN SET] User: ${userId}, Channel: ${message.channel.id}, In: 30m, Message ID: ${message.id}, Message Link: ${message.url}`);
+        } catch (error) {
+          if (error.code === 11000) { // Duplicate key error
+            await sendLog(`[RAID SPAWN COOLDOWN] User ${userId} already has a cooldown timer.`);
+          } else {
+            console.error(`[ERROR] Failed to create reminder for raid spawn: ${error.message}`, error);
+            await sendError(`[ERROR] Failed to create reminder for raid spawn: ${error.message}`);
+          }
+        }
+      } else {
+        console.warn(`[WARN] Could not determine a userId for the raid spawn message. Message ID: ${message.id}`);
+      }
+      return;
+    }
+
   } catch (error) {
     console.error(`[ERROR] Unhandled error in processMessage: ${error.message}`, error);
   }
@@ -186,9 +241,9 @@ async function processBossAndCardMessage(message) {
 
   // Ignore messages older than 60 seconds to prevent processing stale events
   if (Date.now() - message.createdTimestamp > 60000) return;
-
   try {
     const embed = message.embeds[0];
+
     const settings = getSettings(message.guild.id);
     if (!settings) return;
 

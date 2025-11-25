@@ -5,6 +5,7 @@ const userNotificationSettingsSchema = new mongoose.Schema({
   expedition: { type: Boolean, default: true },
   stamina: { type: Boolean, default: true },
   raid: { type: Boolean, default: true },
+  raid_spawn: { type: Boolean, default: true },
   dmNotifications: { type: Boolean, default: false },
 });
 
