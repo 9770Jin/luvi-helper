@@ -162,7 +162,7 @@ async function processMessage(message) {
               channelId: message.channel.id,
               remindAt,
               type: 'expedition',
-              reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`</expeditions:1426499105936379922>\` again for the bot to remind you next time.`,
+              reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
             });
             await sendLog(`[EXPEDITION REMINDER SET] User: ${userId}, Max Card: ${maxCard.cardName} (${maxCard.cardId}), In: ${formatDuration(maxCard.remainingMillis)}, Channel: ${message.channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
           } catch (error) {
