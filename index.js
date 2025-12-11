@@ -5,7 +5,8 @@ const {
   Collection,
   Events,
   PermissionsBitField,
-  ActivityType
+  ActivityType,
+  Options
 } = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs');
@@ -20,6 +21,27 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
   ],
+  makeCache: Options.cacheWithLimits({
+    ...Options.DefaultMakeCacheSettings,
+    MessageManager: 25,
+    GuildMemberManager: 10,
+    UserManager: 100,
+    ThreadManager: 0,
+    PresenceManager: 0,
+    ReactionManager: 0,
+    GuildScheduledEventManager: 0,
+  }),
+  sweepers: {
+    ...Options.DefaultSweeperSettings,
+    messages: {
+      interval: 3600, // Every hour
+      lifetime: 1800, // Remove messages older than 30 minutes
+    },
+    users: {
+      interval: 3600,
+      filter: () => user => user.id !== client.user.id, // Don't sweep self
+    },
+  },
 });
 
 // Load commands from ./commands folder
@@ -144,10 +166,10 @@ For bugs or suggestions, join the support server (link in bio).
       await initializeUserSettings();
       initTimerManager(readyClient);
 
-        const updateStatus = () => {
-          const serverCount = readyClient.guilds.cache.size;
-          readyClient.user.setActivity(`Luvi bot in ${serverCount} servers`, { type: ActivityType.Watching });
-        };
+      const updateStatus = () => {
+        const serverCount = readyClient.guilds.cache.size;
+        readyClient.user.setActivity(`Luvi bot in ${serverCount} servers`, { type: ActivityType.Watching });
+      };
 
       updateStatus(); // Set status immediately
       setInterval(updateStatus, 300000); // Update every 5 minutes

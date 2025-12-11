@@ -12,6 +12,10 @@ const timeoutMap = new Map();
  */
 const setTimer = async (client, reminderData) => {
     try {
+        if (timeoutMap.size >= 1000) {
+            console.warn(`[WARN] TimerManager has ${timeoutMap.size} active timeouts. This might indicate a leak or heavy load.`);
+        }
+
         // Use findOneAndUpdate with upsert to update existing reminder or create new one
         // This keeps the _id stable if the reminder already exists
         const reminder = await Reminder.findOneAndUpdate(
