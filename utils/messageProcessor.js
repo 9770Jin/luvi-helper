@@ -37,30 +37,28 @@ async function processMessage(message) {
           // Not critical enough to send to webhook, just console is fine for this specific logic check
         }
       }
-    }
+      if (userId) {
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('stamina_25')
+            .setLabel('Remind at 25% Stamina')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId('stamina_50')
+            .setLabel('Remind at 50% Stamina')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId('stamina_100')
+            .setLabel('Remind at 100% Stamina')
+            .setStyle(ButtonStyle.Primary)
+        );
 
-    if (userId) {
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('stamina_25')
-          .setLabel('Remind at 25% Stamina')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId('stamina_50')
-          .setLabel('Remind at 50% Stamina')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId('stamina_100')
-          .setLabel('Remind at 100% Stamina')
-          .setStyle(ButtonStyle.Primary)
-      );
-
-      await message.channel.send({
-        content: `<@${userId}>, I see you've run out of stamina. When would you like to be reminded?`,
-        components: [row],
-      });
+        await message.channel.send({
+          content: `<@${userId}>, I see you've run out of stamina. When would you like to be reminded?`,
+          components: [row],
+        });
+      }
     }
-    return;
 
     if (!message.embeds.length) return;
     const embed = message.embeds[0];
@@ -106,7 +104,6 @@ async function processMessage(message) {
         }
       }
     }
-    return;
 
     // === EXPEDITION DETECTION ===
     const expeditionInfo = parseExpeditionEmbed(embed);
