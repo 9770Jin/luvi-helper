@@ -14,6 +14,7 @@ const setTimer = async (client, reminderData) => {
     try {
         if (timeoutMap.size >= 1000) {
             console.warn(`[WARN] TimerManager has ${timeoutMap.size} active timeouts. This might indicate a leak or heavy load.`);
+            await sendError(`[WARN] TimerManager has ${timeoutMap.size} active timeouts. This might indicate a leak or heavy load.`);
         }
 
         // Use findOneAndUpdate with upsert to update existing reminder or create new one
@@ -28,6 +29,7 @@ const setTimer = async (client, reminderData) => {
         return reminder;
     } catch (error) {
         console.error('[TimerManager] Error creating timer:', error);
+        await sendError(`[ERROR] [TimerManager] Error creating timer: ${error.message}`);
         throw error;
     }
 };
@@ -46,6 +48,7 @@ const deleteTimer = async (reminderId) => {
         }
     } catch (error) {
         console.error(`[TimerManager] Error deleting timer ${reminderId}:`, error);
+        await sendError(`[ERROR] [TimerManager] Error deleting timer ${reminderId}: ${error.message}`);
     }
 };
 
@@ -99,29 +102,49 @@ const triggerNotification = async (client, reminderId) => {
 
         if (sendReminder) {
             try {
-                if (reminder.type === 'raid' || sendInDm) {
+                let sentToChannel = false;
+                const shouldForceDm = reminder.type === 'raid' || sendInDm;
+
+                // Try sending to channel first if not forced to DM
+                if (!shouldForceDm) {
+                    try {
+                        const channel = await getGuildChannel(client, reminder.channelId);
+                        if (channel) {
+                            await channel.send(reminder.reminderMessage);
+                            await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId}, Channel: ${reminder.channelId}`);
+                            sentToChannel = true;
+                        } else {
+                            console.log(`[TimerManager] Channel ${reminder.channelId} not found or inaccessible. Attempting DM fallback.`);
+                            // We don't necessarily need to webhook this warn if fallback works, but let's leave it as console log to avoid spamming webhook if bot is kicked from a server
+                        }
+                    } catch (err) {
+                        console.error(`[TimerManager] Failed to send to channel ${reminder.channelId}: ${err.message}. Attempting DM fallback.`);
+                        // Same here, handled by fallback
+                    }
+                }
+
+                // Send via DM if forced OR if channel send failed
+                if (shouldForceDm || !sentToChannel) {
                     const user = await client.users.fetch(reminder.userId);
                     if (user) {
                         await user.send(reminder.reminderMessage);
-                        await sendLog(`[REMINDER SENT] User: ${reminder.userId} via DM`);
-                    }
-                } else {
-                    const channel = await getGuildChannel(client, reminder.channelId);
-                    if (channel) {
-                        await channel.send(reminder.reminderMessage);
-                        await sendLog(`[REMINDER SENT] User: ${reminder.userId} in Channel: ${reminder.channelId}`);
-                    } else {
-                        console.log(`Channel ${reminder.channelId} not found or inaccessible.`);
+                        const logSuffix = sentToChannel === false && !shouldForceDm ? " (Fallback from Channel)" : "";
+                        await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId} via DM${logSuffix}`);
                     }
                 }
             } catch (error) {
                 if (error.code === 50007) { // Cannot send messages to this user
                     console.log(`User ${reminder.userId} cannot be DMed.`);
+                    // Not critical error
                 } else {
                     console.error(`Failed to send reminder for user ${reminder.userId}:`, error);
                     await sendError(`[ERROR] Failed to send reminder for user ${reminder.userId}:\n${error.message}`);
                 }
             }
+        } else {
+            // Debug log for skipped reminders
+            console.log(`[TimerManager] Skipped reminder for user ${reminder.userId} type ${reminder.type} due to settings.`);
+            // await sendLog(`[REMINDER SKIPPED] User: ${reminder.userId}, Type: ${reminder.type}`); // Optional, maybe too noisy if intended
         }
 
         // Delete from DB after triggering
@@ -129,6 +152,7 @@ const triggerNotification = async (client, reminderId) => {
 
     } catch (error) {
         console.error(`[TimerManager] Error triggering notification for ${reminderId}:`, error);
+        await sendError(`[ERROR] [TimerManager] Error triggering notification for ${reminderId}: ${error.message}`);
     }
 };
 
@@ -146,6 +170,7 @@ const initTimerManager = async (client) => {
         }
     } catch (error) {
         console.error('[TimerManager] Error initializing:', error);
+        await sendError(`[ERROR] [TimerManager] Error initializing: ${error.message}`);
     }
 };
 

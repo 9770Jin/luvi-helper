@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const mongoose = require('mongoose');
-
+const { getUserSettingsCache } = require('../utils/userSettingsManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -39,13 +39,15 @@ module.exports = {
             }
         });
 
+        const syncedUsers = getUserSettingsCache().size;
+
         const embed = new EmbedBuilder()
             .setTitle('Bot Statistics')
             .setColor('#00FF00')
             .addFields(
                 { name: 'Memory Usage', value: `RSS: ${formatBytes(memoryUsage.rss)}\nHeap Used: ${formatBytes(memoryUsage.heapUsed)}\nHeap Total: ${formatBytes(memoryUsage.heapTotal)}`, inline: true },
                 { name: 'Uptime', value: formatUptime(uptime), inline: true },
-                { name: 'Cache Stats', value: `Guilds: ${client.guilds.cache.size}\nUsers: ${client.users.cache.size}\nChannels: ${client.channels.cache.size}\nMessages: ${totalMessages}`, inline: false },
+                { name: 'Cache Stats', value: `Guilds: ${client.guilds.cache.size}\nUsers: ${syncedUsers}\nChannels: ${client.channels.cache.size}\nMessages: ${totalMessages}`, inline: false },
                 { name: 'Database', value: `Connection State: ${mongoose.connection.readyState}`, inline: true }
             )
             .setTimestamp();

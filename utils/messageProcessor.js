@@ -7,7 +7,7 @@ const {
 
 const { getSettings, updateSettings } = require('./settingsManager');
 const Reminder = require('../models/Reminder');
-const { sendLog, sendError } = require('./logger');
+const { sendError } = require('./logger');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setTimer } = require('./timerManager');
 
@@ -34,32 +34,33 @@ async function processMessage(message) {
           userId = referencedMessage.author.id;
         } catch (error) {
           console.error('Error fetching referenced message:', error);
+          // Not critical enough to send to webhook, just console is fine for this specific logic check
         }
       }
-
-      if (userId) {
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('stamina_25')
-            .setLabel('Remind at 25% Stamina')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setCustomId('stamina_50')
-            .setLabel('Remind at 50% Stamina')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setCustomId('stamina_100')
-            .setLabel('Remind at 100% Stamina')
-            .setStyle(ButtonStyle.Primary)
-        );
-
-        await message.channel.send({
-          content: `<@${userId}>, I see you've run out of stamina. When would you like to be reminded?`,
-          components: [row],
-        });
-      }
-      return;
     }
+
+    if (userId) {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('stamina_25')
+          .setLabel('Remind at 25% Stamina')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('stamina_50')
+          .setLabel('Remind at 50% Stamina')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('stamina_100')
+          .setLabel('Remind at 100% Stamina')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await message.channel.send({
+        content: `<@${userId}>, I see you've run out of stamina. When would you like to be reminded?`,
+        components: [row],
+      });
+    }
+    return;
 
     if (!message.embeds.length) return;
     const embed = message.embeds[0];
@@ -94,7 +95,6 @@ async function processMessage(message) {
               type: 'raid',
               reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again`,
             });
-            await sendLog(`[RAID REMINDER SET] User: ${userId}, Channel: ${message.channel.id}, In: ${formatDuration(fatigueMillis)}, Message ID: ${message.id}, Message Link: ${message.url}`);
           } catch (error) {
             if (error.code === 11000) {
               // Suppress duplicate key errors
@@ -105,8 +105,8 @@ async function processMessage(message) {
           }
         }
       }
-      return;
     }
+    return;
 
     // === EXPEDITION DETECTION ===
     const expeditionInfo = parseExpeditionEmbed(embed);
@@ -118,9 +118,10 @@ async function processMessage(message) {
           const members = await message.guild.members.fetch({ query: expeditionInfo.username, limit: 1 });
           const member = members.first();
           if (member) userId = member.id;
-          else console.warn(`[WARN] Could not find a guild member with username: ${expeditionInfo.username}`);
+          else await sendError(`[WARN] Could not find a guild member with username: ${expeditionInfo.username}`);
         } catch (err) {
           console.error(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`, err);
+          await sendError(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`);
         }
       }
 
@@ -164,14 +165,14 @@ async function processMessage(message) {
               type: 'expedition',
               reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
             });
-            await sendLog(`[EXPEDITION REMINDER SET] User: ${userId}, Max Card: ${maxCard.cardName} (${maxCard.cardId}), In: ${formatDuration(maxCard.remainingMillis)}, Channel: ${message.channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
+            // Removed excessive log: await sendLog(...) 
           } catch (error) {
             console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
             await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
           }
         }
       } else {
-        console.warn(`[WARN] Could not determine a userId for the expedition message. Title: ${embed.title}`);
+        await sendError(`[WARN] Could not determine a userId for the expedition message. Title: ${embed.title}`);
       }
       return;
     }
@@ -190,17 +191,18 @@ async function processMessage(message) {
       // 2. Fallback: Check recent text messages
       else {
         try {
-          const messages = await message.channel.messages.fetch({ limit: 10 });
+          const messages = await message.channel.messages.fetch({ limit: 20 });
           const spawnMsg = messages.find(m =>
             !m.author.bot &&
             /\braid\s+spawn\b/i.test(m.content) &&
-            (Date.now() - m.createdTimestamp < 15000) // Within last 15 seconds
+            (Date.now() - m.createdTimestamp < 20000) // Within last 20 seconds
           );
           if (spawnMsg) {
             userId = spawnMsg.author.id;
           }
         } catch (err) {
           console.error("Failed to fetch messages for raid spawn check:", err);
+          await sendError(`[ERROR] Failed to fetch messages for raid spawn check: ${err.message}`);
         }
       }
 
@@ -216,17 +218,18 @@ async function processMessage(message) {
             type: 'raid_spawn',
             reminderMessage: `<@${userId}>, your raid spawn cooldown is up! You can spawn another raid now </raid spawn:1404667045332910220>`
           });
-          await sendLog(`[RAID SPAWN COOLDOWN SET] User: ${userId}, Channel: ${message.channel.id}, In: 30m, Message ID: ${message.id}, Message Link: ${message.url}`);
+          // Removed excessive log: await sendLog(...)
         } catch (error) {
           if (error.code === 11000) { // Duplicate key error
-            await sendLog(`[RAID SPAWN COOLDOWN] User ${userId} already has a cooldown timer.`);
+            // Suppress log
           } else {
             console.error(`[ERROR] Failed to create reminder for raid spawn: ${error.message}`, error);
             await sendError(`[ERROR] Failed to create reminder for raid spawn: ${error.message}`);
           }
         }
       } else {
-        console.warn(`[WARN] Could not determine a userId for the raid spawn message. Message ID: ${message.id}`);
+        // Use sendError instead of console.warn for visibility in webhook
+        await sendError(`[WARN] Could not determine a userId for the raid spawn message. Message ID: ${message.id}`);
       }
       return;
     }
@@ -261,7 +264,7 @@ async function processBossAndCardMessage(message) {
         try {
           const content = `<@&${roleToPing}> **${bossInfo.tier} Boss Spawned!**\nBoss: **${bossInfo.bossName}**`;
           await message.channel.send({ content, allowedMentions: { roles: [roleToPing] } });
-          await sendLog(`[BOSS DETECTED] ${bossInfo.bossName} (${bossInfo.tier}) in guild ${message.guild.name}`);
+          // Removed excessive log: await sendLog(...)
         } catch (err) {
           console.error(`[ERROR] Failed to send boss ping: ${err.message}`, err);
           await sendError(`[ERROR] Failed to send boss ping: ${err.message}`);
@@ -296,7 +299,7 @@ async function processBossAndCardMessage(message) {
           const rolePings = uniqueRolesToPing.map(id => `<@&${id}>`).join(' ');
           const content = `${rolePings} A **${cardInfo.rarity}** card just spawned!\n**${cardInfo.cardName}** from *${cardInfo.seriesName}*`;
           await message.channel.send({ content, allowedMentions: { roles: uniqueRolesToPing } });
-          await sendLog(`[CARD DETECTED] ${cardInfo.cardName} (${cardInfo.rarity}) from ${cardInfo.seriesName} in guild ${message.guild.name}`);
+          // Removed excessive log: await sendLog(...)
         } catch (err) {
           console.error(`[ERROR] Failed to send card ping: ${err.message}`, err);
           await sendError(`[ERROR] Failed to send card ping: ${err.message}`);
