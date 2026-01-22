@@ -109,12 +109,20 @@ async function processMessage(message) {
     if (embed.title && embed.title.includes("Expedition")) {
       if (embed.title.endsWith("Expedition Resend Results")) {
         let userId = null;
-        try {
-          userId = message.interactionMetadata?.user?.id || message.interaction?.user?.id;
-          if (!userId) throw new Error("interactionMetadata/interaction user ID is empty");
-        } catch (err) {
-          console.error(`[ERROR] Could not get guild member from interaction.`, err);
-          await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.")
+        userId = message.interactionMetadata?.user?.id || message.interaction?.user?.id;
+
+        if (!userId && message.reference?.messageId) {
+          try {
+            const refMessage = await message.fetchReference();
+            userId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
+          } catch (err) {
+            console.warn("[WARN] Failed to fetch referenced message for ID resolution:", err);
+          }
+        }
+
+        if (!userId) {
+          console.error(`[ERROR] Could not get user ID from interaction or reference. Metadata: ${!!message.interactionMetadata}, Interaction: ${!!message.interaction}`);
+          await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.");
           return;
         }
 
