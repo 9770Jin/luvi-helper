@@ -106,72 +106,98 @@ async function processMessage(message) {
     }
 
     // === EXPEDITION DETECTION ===
-    const expeditionInfo = parseExpeditionEmbed(embed);
-    if (expeditionInfo) {
-      let userId = message.interaction?.user?.id;
-
-      if (!userId && expeditionInfo.username) {
+    if (embed.title && embed.title.includes("Expedition")) {
+      if (embed.title.endsWith("Expedition Resend Results")) {
+        let userId = null;
         try {
-          const members = await message.guild.members.fetch({ query: expeditionInfo.username, limit: 1 });
-          const member = members.first();
-          if (member) userId = member.id;
-          else await sendError(`[WARN] Could not find a guild member with username: ${expeditionInfo.username}`);
+          userId = message.interactionMetadata?.user?.id || message.interaction?.user?.id;
+          if (!userId) throw new Error("interactionMetadata/interaction user ID is empty");
         } catch (err) {
-          console.error(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`, err);
-          await sendError(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`);
+          console.error(`[ERROR] Could not get guild member from interaction.`, err);
+          await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.")
+          return;
         }
-      }
 
-      if (userId) {
         const now = Date.now();
+        const remindAt = new Date(now + 7_200_000); // 2 hours
 
-        // Find the card with the maximum remaining time
-        let maxCard = null;
-        for (const card of expeditionInfo.cards) {
-          if (!maxCard || card.remainingMillis > maxCard.remainingMillis) {
-            maxCard = card;
+        await setTimer(message.client, {
+          userId,
+          channelId: message.channel.id,
+          remindAt,
+          type: 'expedition',
+          reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+        });
+
+      } else {
+        const expeditionInfo = parseExpeditionEmbed(embed);
+        if (expeditionInfo) {
+          let userId = message.interaction?.user?.id;
+
+          if (!userId && expeditionInfo.username) {
+            try {
+              const members = await message.guild.members.fetch({ query: expeditionInfo.username, limit: 1 });
+              const member = members.first();
+              if (member) userId = member.id;
+              else await sendError(`[WARN] Could not find a guild member with username: ${expeditionInfo.username}`);
+            } catch (err) {
+              console.error(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`, err);
+              await sendError(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`);
+            }
           }
-        }
 
-        if (maxCard) {
-          try {
-            const remindAt = new Date(now + maxCard.remainingMillis);
+          if (userId) {
+            const now = Date.now();
 
-            // Check for existing expedition reminder
-            const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
-
-            if (existingReminder) {
-              const timeDiff = Math.abs(existingReminder.remindAt.getTime() - remindAt.getTime());
-              // If the difference is less than 1 minute (60000ms), assume it's the same reminder and do nothing
-              // This accounts for drift caused by parsing relative time strings from potentially stale embeds
-              if (timeDiff < 60000) {
-                console.log(`[EXPEDITION] Reminder already exists and is accurate for user ${userId}. Skipping.`);
-                return;
+            // Find the card with the maximum remaining time
+            let maxCard = null;
+            for (const card of expeditionInfo.cards) {
+              if (!maxCard || card.remainingMillis > maxCard.remainingMillis) {
+                maxCard = card;
               }
-
-              // We no longer explicitly delete the timer here because setTimer now handles updates (upsert)
-              // preserving the existing ID.
             }
 
-            await setTimer(message.client, {
-              userId,
-              // cardId is no longer strictly needed for uniqueness but good for reference
-              cardId: maxCard.cardId,
-              channelId: message.channel.id,
-              remindAt,
-              type: 'expedition',
-              reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
-            });
-            // Removed excessive log: await sendLog(...) 
-          } catch (error) {
-            console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
-            await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
+            if (maxCard) {
+              try {
+                const remindAt = new Date(now + maxCard.remainingMillis);
+
+                // Check for existing expedition reminder
+                const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
+
+                if (existingReminder) {
+                  const timeDiff = Math.abs(existingReminder.remindAt.getTime() - remindAt.getTime());
+                  // If the difference is less than 1 minute (60000ms), assume it's the same reminder and do nothing
+                  // This accounts for drift caused by parsing relative time strings from potentially stale embeds
+                  if (timeDiff < 60000) {
+                    console.log(`[EXPEDITION] Reminder already exists and is accurate for user ${userId}. Skipping.`);
+                    return;
+                  }
+
+                  // We no longer explicitly delete the timer here because setTimer now handles updates (upsert)
+                  // preserving the existing ID.
+                }
+
+                await setTimer(message.client, {
+                  userId,
+                  // cardId is no longer strictly needed for uniqueness but good for reference
+                  cardId: maxCard.cardId,
+                  channelId: message.channel.id,
+                  remindAt,
+                  type: 'expedition',
+                  reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+                });
+                // Removed excessive log: await sendLog(...) 
+              } catch (error) {
+                console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
+                await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
+              }
+            }
+          } else {
+            await sendError(`[WARN] Could not determine a userId for the expedition message. Title: ${embed.title}`);
           }
+          return;
         }
-      } else {
-        await sendError(`[WARN] Could not determine a userId for the expedition message. Title: ${embed.title}`);
       }
-      return;
     }
 
     // === RAID SPAWN DETECTION ===
