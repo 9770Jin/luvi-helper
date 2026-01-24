@@ -287,21 +287,29 @@ async function processMessage(message, oldMessage = null) {
     }
 
     // === CARD DROP DETECTION ===
-    if (title.includes("card dropped!")) {
+    // Note: title is already lowercased from line 233
+    if (title.includes("card dropped")) {
+      console.log(`[CARD DROP] Detected card drop embed. Title: "${embed.title}"`);
       try {
         // Extract user ID from footer icon_url
         // Format: https://cdn.discordapp.com/avatars/{userId}/{avatar}.png
         const footer = embed.footer;
+        console.log(`[CARD DROP] Footer exists: ${!!footer}, icon_url: ${footer?.icon_url}`);
+
         if (footer && footer.icon_url) {
           const avatarUrlMatch = footer.icon_url.match(/\/avatars\/(\d+)\//);
+          console.log(`[CARD DROP] Regex match result: ${avatarUrlMatch ? avatarUrlMatch[1] : 'NO MATCH'}`);
+
           if (avatarUrlMatch && avatarUrlMatch[1]) {
             const userId = avatarUrlMatch[1];
+            console.log(`[CARD DROP] Extracted user ID: ${userId}`);
 
             // Set reminder for 1 hour (card drop cooldown)
             const oneHour = 60 * 60 * 1000;
             const remindAt = new Date(Date.now() + oneHour);
 
             try {
+              console.log(`[CARD DROP] Attempting to set timer for user ${userId} at ${remindAt.toISOString()}`);
               await setTimer(message.client, {
                 userId,
                 channelId: message.channel.id,
@@ -309,10 +317,10 @@ async function processMessage(message, oldMessage = null) {
                 type: 'card_drop',
                 reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using \`@bot drop\` or \`/drop\``
               });
-              console.log(`[CARD DROP] Set reminder for user ${userId} in 1 hour`);
+              console.log(`[CARD DROP] ✓ Successfully set reminder for user ${userId} in 1 hour`);
             } catch (error) {
               if (error.code === 11000) {
-                // Duplicate key error - reminder already exists, suppress
+                console.log(`[CARD DROP] Duplicate reminder already exists for user ${userId} (suppressed)`);
               } else {
                 console.error(`[ERROR] Failed to create reminder for card drop: ${error.message}`, error);
                 await sendError(`[ERROR] Failed to create reminder for card drop: ${error.message}`);
@@ -320,7 +328,11 @@ async function processMessage(message, oldMessage = null) {
             }
           } else {
             console.warn(`[WARN] Could not extract user ID from footer icon_url: ${footer.icon_url}`);
+            await sendError(`[WARN] Card drop: Could not extract user ID from footer icon_url: ${footer.icon_url}`);
           }
+        } else {
+          console.warn(`[WARN] Card drop detected but no footer or icon_url found`);
+          await sendError(`[WARN] Card drop detected but no footer or icon_url found. Embed title: ${embed.title}`);
         }
       } catch (error) {
         console.error(`[ERROR] Error processing card drop: ${error.message}`, error);
