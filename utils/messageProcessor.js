@@ -317,7 +317,7 @@ async function processMessage(message, oldMessage = null) {
                 channelId: message.channel.id,
                 remindAt,
                 type: 'card_drop',
-                reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using \`@bot drop\` or \`/drop\``
+                reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using </drop:1464548731549384900>`
               });
               console.log(`[CARD DROP] ✓ Successfully set reminder for user ${userId} in 1 hour`);
             } catch (error) {
