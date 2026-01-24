@@ -286,6 +286,49 @@ async function processMessage(message, oldMessage = null) {
       return;
     }
 
+    // === CARD DROP DETECTION ===
+    if (title.includes("card dropped")) {
+      try {
+        // Extract user ID from footer icon_url
+        // Format: https://cdn.discordapp.com/avatars/{userId}/{avatar}.png
+        const footer = embed.footer;
+        if (footer && footer.icon_url) {
+          const avatarUrlMatch = footer.icon_url.match(/\/avatars\/(\d+)\//);
+          if (avatarUrlMatch && avatarUrlMatch[1]) {
+            const userId = avatarUrlMatch[1];
+
+            // Set reminder for 1 hour (card drop cooldown)
+            const oneHour = 60 * 60 * 1000;
+            const remindAt = new Date(Date.now() + oneHour);
+
+            try {
+              await setTimer(message.client, {
+                userId,
+                channelId: message.channel.id,
+                remindAt,
+                type: 'card_drop',
+                reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using \`@bot drop\` or \`/drop\``
+              });
+              console.log(`[CARD DROP] Set reminder for user ${userId} in 1 hour`);
+            } catch (error) {
+              if (error.code === 11000) {
+                // Duplicate key error - reminder already exists, suppress
+              } else {
+                console.error(`[ERROR] Failed to create reminder for card drop: ${error.message}`, error);
+                await sendError(`[ERROR] Failed to create reminder for card drop: ${error.message}`);
+              }
+            }
+          } else {
+            console.warn(`[WARN] Could not extract user ID from footer icon_url: ${footer.icon_url}`);
+          }
+        }
+      } catch (error) {
+        console.error(`[ERROR] Error processing card drop: ${error.message}`, error);
+        await sendError(`[ERROR] Error processing card drop: ${error.message}`);
+      }
+      return;
+    }
+
   } catch (error) {
     console.error(`[ERROR] Unhandled error in processMessage: ${error.message}`, error);
   }
