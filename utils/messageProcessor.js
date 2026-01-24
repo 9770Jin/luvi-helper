@@ -109,6 +109,13 @@ async function processMessage(message, oldMessage = null) {
       if (embed.title.endsWith("Expedition Resend Results")) {
         let userId = null;
 
+        // DEBUG LOGGING START
+        console.log(`[DEBUG][EXPEDITION_RESEND] Processing resend results for channel ${message.channel.id}`);
+        console.log(`[DEBUG][EXPEDITION_RESEND] InteractionMetadata User: ${message.interactionMetadata?.user?.id || 'null'}`);
+        console.log(`[DEBUG][EXPEDITION_RESEND] Interaction User: ${message.interaction?.user?.id || 'null'}`);
+        console.log(`[DEBUG][EXPEDITION_RESEND] Reference Message: ${message.reference?.messageId || 'null'}`);
+        // DEBUG LOGGING END
+
         // 1. Try interaction metadata (direct or from reference)
         if (message.interactionMetadata?.user?.id) userId = message.interactionMetadata.user.id;
         else if (message.interaction?.user?.id) userId = message.interaction.user.id;
@@ -120,9 +127,12 @@ async function processMessage(message, oldMessage = null) {
             // Try getting ID from reference's interaction logic
             userId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
 
+            console.log(`[DEBUG][EXPEDITION_RESEND] User ID from Reference Interaction: ${userId || 'null'}`);
+
             // 3. Fallback: Parse the referenced message embed for username if interaction metadata is missing
             if (!userId && refMessage.embeds.length > 0) {
               const refEmbed = refMessage.embeds[0];
+              console.log(`[DEBUG][EXPEDITION_RESEND] Attempting to parse username from ref embed: "${refEmbed.title}"`);
               // Reuse parseExpeditionEmbed to get the username from the title "Username's Expeditions"
               const expInfo = parseExpeditionEmbed(refEmbed);
               if (expInfo && expInfo.username) {
@@ -142,7 +152,10 @@ async function processMessage(message, oldMessage = null) {
         }
 
         if (!userId) {
-          console.error(`[ERROR] Could not get user ID from interaction or reference. Metadata: ${!!message.interactionMetadata}, Interaction: ${!!message.interaction}`);
+          console.error(`[ERROR] Could not get user ID from interaction or reference. Metadata: ${!!message.interactionMetadata}, Interaction: ${!!message.interaction}, Reference: ${!!message.reference}`);
+          // Provide more context in the error log
+          console.log(`[DEBUG][EXPEDITION_RESEND] FULL MESSAGE DATA: InteractionMetadata: ${JSON.stringify(message.interactionMetadata)}, Interaction: ${JSON.stringify(message.interaction)}, Reference: ${JSON.stringify(message.reference)}`);
+
           await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.");
           return;
         }
