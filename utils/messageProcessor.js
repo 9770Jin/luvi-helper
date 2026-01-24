@@ -12,34 +12,6 @@ const { setTimer } = require('./timerManager');
 
 const LUVI_ID = '1269481871021047891';
 
-async function resolveUserId(message) {
-  // 1. Try interaction metadata
-  if (message.interactionMetadata?.user?.id) return message.interactionMetadata.user.id;
-  if (message.interaction?.user?.id) return message.interaction.user.id;
-
-  // 2. Try fetching referenced message
-  if (message.reference?.messageId) {
-    try {
-      const refMessage = await message.fetchReference();
-      const refId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
-      if (refId) return refId;
-
-      // 3. Fallback: Parse referenced embed for username
-      if (refMessage.embeds.length > 0) {
-        const expInfo = parseExpeditionEmbed(refMessage.embeds[0]);
-        if (expInfo && expInfo.username) {
-          const members = await message.guild.members.fetch({ query: expInfo.username, limit: 1 });
-          const member = members.first();
-          if (member) return member.id;
-        }
-      }
-    } catch (err) {
-      console.warn("[WARN] Failed to resolve user ID from reference:", err.message);
-    }
-  }
-  return null;
-}
-
 async function processMessage(message, oldMessage = null) {
   if (!message.guild || message.author.id !== LUVI_ID) return;
 
@@ -133,27 +105,45 @@ async function processMessage(message, oldMessage = null) {
     }
 
     // === EXPEDITION DETECTION ===
-    const isResendResults = embed.title?.endsWith("Expedition Resend Results");
-    const expeditionInfo = !isResendResults ? parseExpeditionEmbed(embed) : null;
+    if (embed.title && embed.title.includes("Expedition")) {
+      if (embed.title.endsWith("Expedition Resend Results")) {
+        let userId = null;
 
-    if (isResendResults || expeditionInfo) {
-      const userId = await resolveUserId(message);
+        // 1. Try interaction metadata (direct or from reference)
+        if (message.interactionMetadata?.user?.id) userId = message.interactionMetadata.user.id;
+        else if (message.interaction?.user?.id) userId = message.interaction.user.id;
 
-      if (!userId) {
-        // Only log error and send message if it's explicitly a Resend Results or we have expedition info but no ID
-        if (isResendResults) {
-          console.error(`[ERROR][EXPEDITION_RESEND] Could not get user ID. Metadata: ${!!message.interactionMetadata}, Interaction: ${!!message.interaction}, Reference: ${!!message.reference}`);
-          await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.");
-        } else {
-          await sendError(`[WARN] Could not determine a userId for expedition: ${embed.title}`);
+        // 2. Try fetching referenced message if we still don't have a user ID
+        if (!userId && message.reference?.messageId) {
+          try {
+            const refMessage = await message.fetchReference();
+            // Try getting ID from reference's interaction logic
+            userId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
+
+            // 3. Fallback: Parse the referenced message embed for username if interaction metadata is missing
+            if (!userId && refMessage.embeds.length > 0) {
+              const refEmbed = refMessage.embeds[0];
+              // Reuse parseExpeditionEmbed to get the username from the title "Username's Expeditions"
+              const expInfo = parseExpeditionEmbed(refEmbed);
+              if (expInfo && expInfo.username) {
+                try {
+                  const members = await message.guild.members.fetch({ query: expInfo.username, limit: 1 });
+                  const member = members.first();
+                  if (member) userId = member.id;
+                  else console.warn(`[WARN] Could not find guild member for username: ${expInfo.username} from referenced message`);
+                } catch (err) {
+                  console.error(`[ERROR] Failed to fetch member for username from reference: ${expInfo.username}`, err);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("[WARN] Failed to fetch referenced message for ID resolution:", err.message);
+          }
         }
-        return;
-      }
 
-      const now = Date.now();
-
-      if (isResendResults) {
+        const now = Date.now();
         const remindAt = new Date(now + 7_200_000); // 2 hours
+
         await setTimer(message.client, {
           userId,
           channelId: message.channel.id,
@@ -161,35 +151,76 @@ async function processMessage(message, oldMessage = null) {
           type: 'expedition',
           reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
         });
-      } else if (expeditionInfo) {
-        // Handle normal expedition list
-        let maxCard = null;
-        for (const card of expeditionInfo.cards) {
-          if (!maxCard || card.remainingMillis > maxCard.remainingMillis) {
-            maxCard = card;
+
+      } else {
+        const expeditionInfo = parseExpeditionEmbed(embed);
+        if (expeditionInfo) {
+          let userId = message.interaction?.user?.id;
+
+          if (!userId && expeditionInfo.username) {
+            try {
+              const members = await message.guild.members.fetch({ query: expeditionInfo.username, limit: 1 });
+              const member = members.first();
+              if (member) userId = member.id;
+              else await sendError(`[WARN] Could not find a guild member with username: ${expeditionInfo.username}`);
+            } catch (err) {
+              console.error(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`, err);
+              await sendError(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`);
+            }
           }
-        }
 
-        if (maxCard) {
-          const remindAt = new Date(now + maxCard.remainingMillis);
-          const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
+          if (userId) {
+            const now = Date.now();
 
-          if (existingReminder) {
-            const timeDiff = Math.abs(existingReminder.remindAt.getTime() - remindAt.getTime());
-            if (timeDiff < 60000) return; // Accurate enough
+            // Find the card with the maximum remaining time
+            let maxCard = null;
+            for (const card of expeditionInfo.cards) {
+              if (!maxCard || card.remainingMillis > maxCard.remainingMillis) {
+                maxCard = card;
+              }
+            }
+
+            if (maxCard) {
+              try {
+                const remindAt = new Date(now + maxCard.remainingMillis);
+
+                // Check for existing expedition reminder
+                const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
+
+                if (existingReminder) {
+                  const timeDiff = Math.abs(existingReminder.remindAt.getTime() - remindAt.getTime());
+                  // If the difference is less than 1 minute (60000ms), assume it's the same reminder and do nothing
+                  // This accounts for drift caused by parsing relative time strings from potentially stale embeds
+                  if (timeDiff < 60000) {
+                    console.log(`[EXPEDITION] Reminder already exists and is accurate for user ${userId}. Skipping.`);
+                    return;
+                  }
+
+                  // We no longer explicitly delete the timer here because setTimer now handles updates (upsert)
+                  // preserving the existing ID.
+                }
+
+                await setTimer(message.client, {
+                  userId,
+                  // cardId is no longer strictly needed for uniqueness but good for reference
+                  cardId: maxCard.cardId,
+                  channelId: message.channel.id,
+                  remindAt,
+                  type: 'expedition',
+                  reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+                });
+                // Removed excessive log: await sendLog(...) 
+              } catch (error) {
+                console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
+                await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
+              }
+            }
+          } else {
+            await sendError(`[WARN] Could not determine a userId for the expedition message. Title: ${embed.title}`);
           }
-
-          await setTimer(message.client, {
-            userId,
-            cardId: maxCard.cardId,
-            channelId: message.channel.id,
-            remindAt,
-            type: 'expedition',
-            reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
-          });
+          return;
         }
       }
-      return;
     }
 
     // === RAID SPAWN DETECTION ===
