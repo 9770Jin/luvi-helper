@@ -298,7 +298,8 @@ async function processMessage(message, oldMessage = null) {
         console.log(`[CARD DROP] Full footer object:`, JSON.stringify(footer, null, 2));
 
         if (footer && footer.iconURL) {
-          const avatarUrlMatch = footer.iconURL.match(/\/avatars\/(\d+)\//);
+          // Supports both global avatars (/avatars/userId/...) and guild-specific avatars (/users/userId/...)
+          const avatarUrlMatch = footer.iconURL.match(/\/(?:avatars|users)\/(\d+)/);
           console.log(`[CARD DROP] Regex match result: ${avatarUrlMatch ? avatarUrlMatch[1] : 'NO MATCH'}`);
 
           if (avatarUrlMatch && avatarUrlMatch[1]) {
