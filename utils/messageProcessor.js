@@ -1,6 +1,5 @@
 const {
   parseBossEmbed,
-  parseBossEmbed,
   parseExpeditionEmbed,
   parseRaidViewEmbed,
 } = require('./embedParser');
