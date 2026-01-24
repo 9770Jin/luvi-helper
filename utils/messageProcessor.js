@@ -294,10 +294,11 @@ async function processMessage(message, oldMessage = null) {
         // Extract user ID from footer icon_url
         // Format: https://cdn.discordapp.com/avatars/{userId}/{avatar}.png
         const footer = embed.footer;
-        console.log(`[CARD DROP] Footer exists: ${!!footer}, icon_url: ${footer?.icon_url}`);
+        console.log(`[CARD DROP] Footer exists: ${!!footer}, iconURL: ${footer?.iconURL}`);
+        console.log(`[CARD DROP] Full footer object:`, JSON.stringify(footer, null, 2));
 
-        if (footer && footer.icon_url) {
-          const avatarUrlMatch = footer.icon_url.match(/\/avatars\/(\d+)\//);
+        if (footer && footer.iconURL) {
+          const avatarUrlMatch = footer.iconURL.match(/\/avatars\/(\d+)\//);
           console.log(`[CARD DROP] Regex match result: ${avatarUrlMatch ? avatarUrlMatch[1] : 'NO MATCH'}`);
 
           if (avatarUrlMatch && avatarUrlMatch[1]) {
@@ -327,12 +328,12 @@ async function processMessage(message, oldMessage = null) {
               }
             }
           } else {
-            console.warn(`[WARN] Could not extract user ID from footer icon_url: ${footer.icon_url}`);
-            await sendError(`[WARN] Card drop: Could not extract user ID from footer icon_url: ${footer.icon_url}`);
+            console.warn(`[WARN] Could not extract user ID from footer iconURL: ${footer.iconURL}`);
+            await sendError(`[WARN] Card drop: Could not extract user ID from footer iconURL: ${footer.iconURL}`);
           }
         } else {
-          console.warn(`[WARN] Card drop detected but no footer or icon_url found`);
-          await sendError(`[WARN] Card drop detected but no footer or icon_url found. Embed title: ${embed.title}`);
+          console.warn(`[WARN] Card drop detected but no footer or iconURL found`);
+          await sendError(`[WARN] Card drop detected but no footer or iconURL found. Embed title: ${embed.title}`);
         }
       } catch (error) {
         console.error(`[ERROR] Error processing card drop: ${error.message}`, error);
