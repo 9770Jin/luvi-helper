@@ -11,14 +11,6 @@ const getGuildChannel = async (client, channelId) => {
         const channel = await client.channels.fetch(channelId);
         if (!channel || !channel.isTextBased() || channel.isDMBased()) return null;
 
-        const permissions = channel.permissionsFor(client.user);
-        if (!permissions?.has([PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages])) {
-            const missing = [];
-            if (!permissions.has(PermissionsBitField.Flags.ViewChannel)) missing.push('ViewChannel');
-            if (!permissions.has(PermissionsBitField.Flags.SendMessages)) missing.push('SendMessages');
-            console.warn(`[GetGuildChannel] Missing permissions for channel ${channelId}: ${missing.join(', ')}`);
-            return null;
-        }
 
         return channel;
     } catch (error) {
