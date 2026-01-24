@@ -287,7 +287,7 @@ async function processMessage(message, oldMessage = null) {
     }
 
     // === CARD DROP DETECTION ===
-    if (title.includes("card dropped")) {
+    if (title.includes("card dropped!")) {
       try {
         // Extract user ID from footer icon_url
         // Format: https://cdn.discordapp.com/avatars/{userId}/{avatar}.png
