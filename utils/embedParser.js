@@ -24,40 +24,7 @@ function parseBossEmbed(embed) {
   return (bossName && tier) ? { bossName, tier } : null;
 }
 
-function parseCardEmbed(embed) {
-  if (!embed) return null;
 
-  const description = embed.description || '';
-  // Map rarity codes from emoji in description
-  const rarityMap = {
-    C: 'Common',
-    UC: 'Uncommon',
-    R: 'Rare',
-    E: 'Exotic',
-    L: 'Legendary'
-  };
-
-  // Extract rarity code e.g. <:LU_UC:...>
-  const rarityMatch = description.match(/:LU_([A-Z]{1,2}):/);
-  let rarity = null;
-  if (rarityMatch) {
-    const code = rarityMatch[1];
-    rarity = rarityMap[code] || 'Unknown';
-  }
-
-  // Extract card name inside ** ** (first bolded name)
-  const nameMatch = description.match(/\*\*(.+?)\*\*/);
-  const cardName = nameMatch ? nameMatch[1] : null;
-
-  // Extract series after "Series:"
-  const seriesMatch = description.match(/Series:\s*([^\n]+)/);
-  const seriesName = seriesMatch ? seriesMatch[1].trim() : null;
-
-  // Validate all parts exist
-  if (!cardName || !seriesName || !rarity) return null;
-
-  return { cardName, seriesName, rarity };
-}
 
 function parseExpeditionEmbed(embed) {
   if (!embed || !embed.title || !embed.title.endsWith('s Expeditions')) return null;
@@ -128,7 +95,6 @@ function parseRaidViewEmbed(embed) {
 
 module.exports = {
   parseBossEmbed,
-  parseCardEmbed,
   parseExpeditionEmbed,
   parseRaidViewEmbed,
 };

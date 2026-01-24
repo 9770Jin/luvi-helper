@@ -1,6 +1,6 @@
 const {
   parseBossEmbed,
-  parseCardEmbed,
+  parseBossEmbed,
   parseExpeditionEmbed,
   parseRaidViewEmbed,
 } = require('./embedParser');
@@ -326,40 +326,7 @@ async function processBossAndCardMessage(message) {
       return;
     }
 
-    // === CARD DETECTION ===
-    const cardInfo = parseCardEmbed(embed);
-    if (cardInfo) {
-      const rarity = cardInfo.rarity.toLowerCase();
-      const rolesToPing = [];
 
-      if (settings.cardPingRoles) {
-        // Make sure cardPingRoles works whether it's a Map or Object
-        const getRole = (key) => {
-          if (typeof settings.cardPingRoles.get === 'function') return settings.cardPingRoles.get(key);
-          return settings.cardPingRoles[key];
-        };
-
-        const specificRole = getRole(rarity);
-        const allRole = getRole('all');
-        if (specificRole) rolesToPing.push(specificRole);
-        if (allRole) rolesToPing.push(allRole);
-      }
-
-      const uniqueRolesToPing = [...new Set(rolesToPing)];
-
-      if (uniqueRolesToPing.length > 0) {
-        try {
-          const rolePings = uniqueRolesToPing.map(id => `<@&${id}>`).join(' ');
-          const content = `${rolePings} A **${cardInfo.rarity}** card just spawned!\n**${cardInfo.cardName}** from *${cardInfo.seriesName}*`;
-          await message.channel.send({ content, allowedMentions: { roles: uniqueRolesToPing } });
-          // Removed excessive log: await sendLog(...)
-        } catch (err) {
-          console.error(`[ERROR] Failed to send card ping: ${err.message}`, err);
-          await sendError(`[ERROR] Failed to send card ping: ${err.message}`);
-        }
-      }
-      return;
-    }
 
   } catch (error) {
     console.error(`[ERROR] Unhandled error in processBossAndCardMessage: ${error.message}`, error);

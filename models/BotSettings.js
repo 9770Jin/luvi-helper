@@ -10,11 +10,7 @@ const botSettingsSchema = new mongoose.Schema({
   raidResetPingChannelId: { type: String },
   raidResetPingRoleId: { type: String },
 
-  cardPingRoles: {
-    type: Map,
-    of: String,
-    default: {}, // example keys: 'all', 'common', 'uncommon', 'rare', 'exotic', 'legendary'
-  }
+
 });
 
 module.exports = mongoose.model('BotSettings', botSettingsSchema);

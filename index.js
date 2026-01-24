@@ -113,16 +113,7 @@ To set up the bot, please use these commands:
 - \`/set-tier-role tier:2 role:@Role\`
 - \`/set-tier-role tier:3 role:@Role\` *(recommended to set at least Tier 3)*
 
-2️⃣ Set Card Ping Roles:
-- \`/set-card-role rarity:all role:@Role\`
-- \`/set-card-role rarity:common role:@Role\`
-- \`/set-card-role rarity:uncommon role:@Role\`
-- \`/set-card-role rarity:rare role:@Role\`
-- \`/set-card-role rarity:legendary role:@Role\`
-- \`/set-card-role rarity:exotic role:@Role\`
 
-- \`To remove any of the pings run the same command without the role\`
-  \`The bot will ping those roles when bosses or cards spawn.\`
 
 - \`/view-settings\` to view the current config.
 - \`Make sure I have permission to mention the role.\`
