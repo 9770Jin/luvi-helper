@@ -111,33 +111,38 @@ async function processMessage(message, oldMessage = null) {
         let userId = null;
 
         // 1. Try interaction metadata (direct or from reference)
-        if (!userId) {
-          userId = message.interactionMetadata?.user?.id || message.interaction?.user?.id;
-        }
+        if (message.interactionMetadata?.user?.id) userId = message.interactionMetadata.user.id;
+        else if (message.interaction?.user?.id) userId = message.interaction.user.id;
 
-        // 2. Try referenced message (for Replies like 'Expedition Resend')
-        if (!userId && message.type === 19 && message.referenced_message) {
-          userId = message.referenced_message.interactionMetadata?.user?.id ||
-            message.referenced_message.interaction?.user?.id;
-        }
-
-        // 3. Fallback: Fetch reference if not already resolved
+        // 2. Try fetching referenced message if we still don't have a user ID
         if (!userId && message.reference?.messageId) {
           try {
             const refMessage = await message.fetchReference();
+            // Try getting ID from reference's interaction logic
             userId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
+
+            // 3. Fallback: Parse the referenced message embed for username if interaction metadata is missing
+            if (!userId && refMessage.embeds.length > 0) {
+              const refEmbed = refMessage.embeds[0];
+              // Reuse parseExpeditionEmbed to get the username from the title "Username's Expeditions"
+              const expInfo = parseExpeditionEmbed(refEmbed);
+              if (expInfo && expInfo.username) {
+                try {
+                  const members = await message.guild.members.fetch({ query: expInfo.username, limit: 1 });
+                  const member = members.first();
+                  if (member) userId = member.id;
+                  else console.warn(`[WARN] Could not find guild member for username: ${expInfo.username} from referenced message`);
+                } catch (err) {
+                  console.error(`[ERROR] Failed to fetch member for username from reference: ${expInfo.username}`, err);
+                }
+              }
+            }
           } catch (err) {
             console.warn("[WARN] Failed to fetch referenced message for ID resolution:", err.message);
           }
         }
 
         if (!userId) {
-          if (oldMessage && oldMessage.embeds && oldMessage.embeds.length > 0) {
-            const oldEmbed = oldMessage.embeds[0];
-            if (oldEmbed.title && oldEmbed.title === embed.title) {
-              return;
-            }
-          }
           console.error(`[ERROR] Could not get user ID from interaction or reference. Metadata: ${!!message.interactionMetadata}, Interaction: ${!!message.interaction}`);
           await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.");
           return;
