@@ -13,7 +13,7 @@ const { setTimer } = require('./timerManager');
 
 const LUVI_ID = '1269481871021047891';
 
-async function processMessage(message) {
+async function processMessage(message, oldMessage = null) {
   if (!message.guild || message.author.id !== LUVI_ID) return;
 
   // Ignore messages older than 60 seconds to prevent processing stale events
@@ -109,18 +109,35 @@ async function processMessage(message) {
     if (embed.title && embed.title.includes("Expedition")) {
       if (embed.title.endsWith("Expedition Resend Results")) {
         let userId = null;
-        userId = message.interactionMetadata?.user?.id || message.interaction?.user?.id;
 
+        // 1. Try interaction metadata (direct or from reference)
+        if (!userId) {
+          userId = message.interactionMetadata?.user?.id || message.interaction?.user?.id;
+        }
+
+        // 2. Try referenced message (for Replies like 'Expedition Resend')
+        if (!userId && message.type === 19 && message.referenced_message) {
+          userId = message.referenced_message.interactionMetadata?.user?.id ||
+            message.referenced_message.interaction?.user?.id;
+        }
+
+        // 3. Fallback: Fetch reference if not already resolved
         if (!userId && message.reference?.messageId) {
           try {
             const refMessage = await message.fetchReference();
             userId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
           } catch (err) {
-            console.warn("[WARN] Failed to fetch referenced message for ID resolution:", err);
+            console.warn("[WARN] Failed to fetch referenced message for ID resolution:", err.message);
           }
         }
 
         if (!userId) {
+          if (oldMessage && oldMessage.embeds && oldMessage.embeds.length > 0) {
+            const oldEmbed = oldMessage.embeds[0];
+            if (oldEmbed.title && oldEmbed.title === embed.title) {
+              return;
+            }
+          }
           console.error(`[ERROR] Could not get user ID from interaction or reference. Metadata: ${!!message.interactionMetadata}, Interaction: ${!!message.interaction}`);
           await message.channel.send("Failed to get user info from embed. You need to run </expeditions:1426499105936379922> again.");
           return;

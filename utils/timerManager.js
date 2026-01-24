@@ -118,7 +118,7 @@ const triggerNotification = async (client, reminderId) => {
                             // We don't necessarily need to webhook this warn if fallback works, but let's leave it as console log to avoid spamming webhook if bot is kicked from a server
                         }
                     } catch (err) {
-                        console.error(`[TimerManager] Failed to send to channel ${reminder.channelId}: ${err.message}. Attempting DM fallback.`);
+                        console.error(`[TimerManager] Failed to send to channel ${reminder.channelId}. Error Name: ${err.name}, Code: ${err.code}, Message: ${err.message}. Attempting DM fallback.`);
                         // Same here, handled by fallback
                     }
                 }

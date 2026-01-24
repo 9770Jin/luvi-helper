@@ -13,6 +13,10 @@ const getGuildChannel = async (client, channelId) => {
 
         const permissions = channel.permissionsFor(client.user);
         if (!permissions?.has([PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages])) {
+            const missing = [];
+            if (!permissions.has(PermissionsBitField.Flags.ViewChannel)) missing.push('ViewChannel');
+            if (!permissions.has(PermissionsBitField.Flags.SendMessages)) missing.push('SendMessages');
+            console.warn(`[GetGuildChannel] Missing permissions for channel ${channelId}: ${missing.join(', ')}`);
             return null;
         }
 
@@ -38,13 +42,13 @@ const reply = async (message, content, autoDelete = false) => {
         msg = await message.reply(content);
     } catch (error) {
         if (error instanceof DiscordAPIError && error.code === 50035) { // Invalid Form Body (often triggered by replying to deleted message) or Unknown Message
-             console.warn(`[REPLY] Could not reply to message ${message.id} in channel ${message.channelId}. Original message likely deleted.`);
-             return;
+            console.warn(`[REPLY] Could not reply to message ${message.id} in channel ${message.channelId}. Original message likely deleted.`);
+            return;
         } else if (error.code === 10008) { // Unknown Message
             console.warn(`[REPLY] Could not reply to message ${message.id}. Message not found.`);
             return;
         }
-        
+
         console.error('[Reply] Unexpected error when replying:', error);
         throw error;
     }

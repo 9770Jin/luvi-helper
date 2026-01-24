@@ -23,7 +23,7 @@ const client = new Client({
   ],
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
-    MessageManager: 25,
+    MessageManager: 200,
     GuildMemberManager: 10,
     UserManager: 100,
     ThreadManager: 0,
@@ -84,7 +84,7 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
   // We only care about updates to messages from the Luvi bot
   if (newMessage.author.id !== '1269481871021047891') return;
-  await processMessage(newMessage);
+  await processMessage(newMessage, oldMessage);
 });
 
 // Guild join welcome/setup guide
