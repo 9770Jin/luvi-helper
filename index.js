@@ -14,6 +14,20 @@ const path = require('path');
 const { initTimerManager } = require('./utils/timerManager');
 const { initializeSettings } = require('./utils/settingsManager');
 const { initializeUserSettings } = require('./utils/userSettingsManager');
+const { sendError } = require('./utils/logger');
+
+// Global Error Handling to prevent crashes
+process.on('unhandledRejection', async (reason, promise) => {
+  console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+  await sendError(`[CRITICAL] Unhandled Rejection: ${reason?.message || reason}`);
+});
+
+process.on('uncaughtException', async (error) => {
+  console.error('[CRITICAL] Uncaught Exception:', error);
+  await sendError(`[CRITICAL] Uncaught Exception: ${error.message}`);
+  // Give some time for the log to be sent before exiting if necessary
+  setTimeout(() => process.exit(1), 1000);
+});
 
 const client = new Client({
   intents: [

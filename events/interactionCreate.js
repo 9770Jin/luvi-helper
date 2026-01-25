@@ -33,10 +33,23 @@ module.exports = {
                 const mentionedUserId = mentionedUserIdMatch ? mentionedUserIdMatch[1] : null;
 
                 if (mentionedUserId && user.id !== mentionedUserId) {
-                    return interaction.reply({ content: "You can't interact with this button.", flags: 1 << 6 });
+                    try {
+                        return await interaction.reply({ content: "You can't interact with this button.", flags: 1 << 6 });
+                    } catch (err) {
+                        if (err.code === 10062) return; // Ignore Unknown Interaction
+                        throw err;
+                    }
                 }
 
-                await interaction.deferReply({ flags: 1 << 6 });
+                try {
+                    await interaction.deferReply({ flags: 1 << 6 });
+                } catch (err) {
+                    if (err.code === 10062) {
+                        console.log(`[Interaction] Interaction ${interaction.id} expired before deferring.`);
+                        return;
+                    }
+                    throw err;
+                }
 
                 const percentage = parseInt(customId.split('_')[1], 10);
                 const maxStamina = 50;
@@ -61,7 +74,13 @@ module.exports = {
                         reminderMessage: `<@${user.id}>, your stamina has regenerated to ${percentage}%! Time to </clash:1426499105936379915>`
                     });
 
-                    await interaction.editReply({ content: confirmationMessage });
+                    try {
+                        await interaction.editReply({ content: confirmationMessage });
+                    } catch (err) {
+                        if (err.code === 10062) return;
+                        throw err;
+                    }
+
                     await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
 
                     const originalMessage = interaction.message;
@@ -84,8 +103,13 @@ module.exports = {
                     console.error(`[ERROR] Failed to create stamina reminder: ${error.message}`, error);
                     await sendError(`[ERROR] Failed to create stamina reminder: ${error.message}`);
                     try {
-                        await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
+                        if (interaction.deferred || interaction.replied) {
+                            await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
+                        } else {
+                            await interaction.reply({ content: 'Sorry, there was an error setting your reminder.', flags: 1 << 6 });
+                        }
                     } catch (e) {
+                        if (e.code === 10062) return;
                         console.error('Failed to send error message for stamina reminder:', e);
                     }
                 }

@@ -62,7 +62,9 @@ const scheduleNotification = (client, reminder) => {
     const delay = new Date(reminder.remindAt).getTime() - now;
 
     if (delay <= 0) {
-        triggerNotification(client, reminder._id);
+        triggerNotification(client, reminder._id).catch(err => {
+            console.error(`[TimerManager] Immediate trigger failed for ${reminder._id}:`, err);
+        });
     } else {
         // If there's already a timeout for this reminder (shouldn't happen usually but good for safety), clear it
         if (timeoutMap.has(reminder._id.toString())) {
@@ -70,7 +72,9 @@ const scheduleNotification = (client, reminder) => {
         }
 
         const timeoutId = setTimeout(() => {
-            triggerNotification(client, reminder._id);
+            triggerNotification(client, reminder._id).catch(err => {
+                console.error(`[TimerManager] Scheduled trigger failed for ${reminder._id}:`, err);
+            });
         }, delay);
 
         timeoutMap.set(reminder._id.toString(), timeoutId);
@@ -138,8 +142,8 @@ const triggerNotification = async (client, reminderId) => {
                 } else if (error.code === 50013 || error.code === 50001) {
                     console.warn(`[TimerManager] Missing permissions to send reminder to user ${reminder.userId} (Code: ${error.code})`);
                 } else {
-                    console.error(`[TimerManager] Failed to send reminder for user ${reminder.userId}:`, error);
-                    await sendError(`[ERROR] [TimerManager] Failed to send reminder for user ${reminder.userId}:\n${error.message}`);
+                    console.error(`[TimerManager] Failed to send reminder for user ${reminder.userId} (Type: ${reminder.type}):`, error);
+                    await sendError(`[ERROR] [TimerManager] Failed to send reminder for user ${reminder.userId} (Type: ${reminder.type}):\n${error.message}`);
                 }
             }
         } else {

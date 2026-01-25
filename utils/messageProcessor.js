@@ -206,7 +206,7 @@ async function processMessage(message, oldMessage = null) {
                   // If the difference is less than 1 minute (60000ms), assume it's the same reminder and do nothing
                   // This accounts for drift caused by parsing relative time strings from potentially stale embeds
                   if (timeDiff < 60000) {
-                    console.log(`[EXPEDITION] Reminder already exists and is accurate for user ${userId}. Skipping.`);
+                    //console.log(`[EXPEDITION] Reminder already exists and is accurate for user ${userId}. Skipping.`);
                     return;
                   }
 
