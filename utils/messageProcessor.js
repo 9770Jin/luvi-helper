@@ -52,10 +52,19 @@ async function processMessage(message, oldMessage = null) {
             .setStyle(ButtonStyle.Primary)
         );
 
-        await message.channel.send({
-          content: `<@${userId}>, I see you've run out of stamina. When would you like to be reminded?`,
-          components: [row],
-        });
+        try {
+          await message.channel.send({
+            content: `<@${userId}>, I see you've run out of stamina. When would you like to be reminded?`,
+            components: [row],
+          });
+        } catch (err) {
+          if (err.code === 50013 || err.code === 50001) {
+            console.warn(`[WARN] Missing permissions to send stamina message in channel ${message.channel.id}`);
+          } else {
+            console.error(`[ERROR] Failed to send stamina message: ${err.message}`, err);
+            await sendError(`[ERROR] Failed to send stamina message: ${err.message}`);
+          }
+        }
       }
     }
 
@@ -144,13 +153,18 @@ async function processMessage(message, oldMessage = null) {
         const now = Date.now();
         const remindAt = new Date(now + 7_200_000); // 2 hours
 
-        await setTimer(message.client, {
-          userId,
-          channelId: message.channel.id,
-          remindAt,
-          type: 'expedition',
-          reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
-        });
+        try {
+          await setTimer(message.client, {
+            userId,
+            channelId: message.channel.id,
+            remindAt,
+            type: 'expedition',
+            reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+          });
+        } catch (err) {
+          console.error(`[ERROR] Failed to set timer for expedition claim: ${err.message}`, err);
+          await sendError(`[ERROR] Failed to set timer for expedition claim: ${err.message}`);
+        }
 
       } else {
         const expeditionInfo = parseExpeditionEmbed(embed);
@@ -354,8 +368,12 @@ async function processBossAndCardMessage(message) {
           await message.channel.send({ content, allowedMentions: { roles: [roleToPing] } });
           // Removed excessive log: await sendLog(...)
         } catch (err) {
-          console.error(`[ERROR] Failed to send boss ping: ${err.message}`, err);
-          await sendError(`[ERROR] Failed to send boss ping: ${err.message}`);
+          if (err.code === 50013 || err.code === 50001) {
+            console.warn(`[WARN] Missing permissions to send boss ping in channel ${message.channel.id}`);
+          } else {
+            console.error(`[ERROR] Failed to send boss ping: ${err.message}`, err);
+            await sendError(`[ERROR] Failed to send boss ping: ${err.message}`);
+          }
         }
       }
       return;

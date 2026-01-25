@@ -134,11 +134,12 @@ const triggerNotification = async (client, reminderId) => {
                 }
             } catch (error) {
                 if (error.code === 50007) { // Cannot send messages to this user
-                    console.log(`User ${reminder.userId} cannot be DMed.`);
-                    // Not critical error
+                    console.log(`[TimerManager] User ${reminder.userId} cannot be DMed.`);
+                } else if (error.code === 50013 || error.code === 50001) {
+                    console.warn(`[TimerManager] Missing permissions to send reminder to user ${reminder.userId} (Code: ${error.code})`);
                 } else {
-                    console.error(`Failed to send reminder for user ${reminder.userId}:`, error);
-                    await sendError(`[ERROR] Failed to send reminder for user ${reminder.userId}:\n${error.message}`);
+                    console.error(`[TimerManager] Failed to send reminder for user ${reminder.userId}:`, error);
+                    await sendError(`[ERROR] [TimerManager] Failed to send reminder for user ${reminder.userId}:\n${error.message}`);
                 }
             }
         } else {
