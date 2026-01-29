@@ -68,6 +68,7 @@ module.exports = {
 
                     await setTimer(interaction.client, {
                         userId: user.id,
+                        guildId: interaction.guildId,
                         channelId: channel.id,
                         remindAt,
                         type: 'stamina',

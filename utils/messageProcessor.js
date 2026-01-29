@@ -1,9 +1,9 @@
 const {
-  // parseBossEmbed,
+  parseBossEmbed,
   parseBossComponent,
-  // parseExpeditionEmbed,
+  parseExpeditionEmbed,
   parseExpeditionComponent,
-  // parseRaidViewEmbed,
+  parseRaidViewEmbed,
   parseRaidViewComponent,
 } = require('./embedParser');
 
@@ -75,9 +75,7 @@ async function processMessage(message, oldMessage = null) {
     const embed = message.embeds[0];
     const components = message.components;
 
-    // === RAID FATIGUE DETECTION ===
-    // const raidInfo = embed ? parseRaidViewEmbed(embed) : parseRaidViewComponent(components);
-    const raidInfo = parseRaidViewComponent(components);
+    const raidInfo = embed ? parseRaidViewEmbed(embed) : parseRaidViewComponent(components);
     if (raidInfo) {
       // raidInfo is an array of { userId, fatigueMillis }
       for (const fatiguedUser of raidInfo) {
@@ -118,13 +116,10 @@ async function processMessage(message, oldMessage = null) {
       }
     }
 
-    // === EXPEDITION DETECTION ===
-    // Handle Resend Results specifically
-    // const isResendFromEmbed = embed?.title?.endsWith("Expedition Resend Results");
-    const expInfoFromComp = parseExpeditionComponent(components);
+    const isResendFromEmbed = embed?.title?.endsWith("Expedition Resend Results");
     const isResendFromComp = expInfoFromComp?.isResend;
 
-    if (/*isResendFromEmbed ||*/ isResendFromComp) {
+    if (isResendFromEmbed || isResendFromComp) {
       let userId = null;
 
       // 1. Try interaction metadata (direct or from reference)
@@ -142,8 +137,7 @@ async function processMessage(message, oldMessage = null) {
           if (!userId) {
             const refEmbed = refMessage.embeds[0];
             const refComponents = refMessage.components;
-            // const refExpInfo = refEmbed ? parseExpeditionEmbed(refEmbed) : parseExpeditionComponent(refComponents);
-            const refExpInfo = parseExpeditionComponent(refComponents);
+            const refExpInfo = refEmbed ? parseExpeditionEmbed(refEmbed) : parseExpeditionComponent(refComponents);
 
             if (refExpInfo && refExpInfo.username) {
               try {
@@ -168,6 +162,7 @@ async function processMessage(message, oldMessage = null) {
         try {
           await setTimer(message.client, {
             userId,
+            guildId: message.guild.id,
             channelId: message.channel.id,
             remindAt,
             type: 'expedition',
@@ -180,7 +175,7 @@ async function processMessage(message, oldMessage = null) {
       }
 
     } else {
-      const expeditionInfo = /*embed ? parseExpeditionEmbed(embed) :*/ expInfoFromComp;
+      const expeditionInfo = embed ? parseExpeditionEmbed(embed) : expInfoFromComp;
       if (expeditionInfo && !expeditionInfo.isResend) {
         let userId = message.interaction?.user?.id;
 
@@ -225,6 +220,7 @@ async function processMessage(message, oldMessage = null) {
               await setTimer(message.client, {
                 userId,
                 cardId: maxCard.cardId,
+                guildId: message.guild.id,
                 channelId: message.channel.id,
                 remindAt,
                 type: 'expedition',
@@ -278,6 +274,7 @@ async function processMessage(message, oldMessage = null) {
         try {
           await setTimer(message.client, {
             userId,
+            guildId: message.guild.id,
             channelId: message.channel.id,
             remindAt,
             type: 'raid_spawn',
@@ -312,6 +309,7 @@ async function processMessage(message, oldMessage = null) {
             try {
               await setTimer(message.client, {
                 userId,
+                guildId: message.guild.id,
                 channelId: message.channel.id,
                 remindAt,
                 type: 'card_drop',
@@ -355,9 +353,7 @@ async function processBossAndCardMessage(message) {
     const settings = getSettings(message.guild.id);
     if (!settings) return;
 
-    // === BOSS DETECTION ===
-    // const bossInfo = embed ? parseBossEmbed(embed) : parseBossComponent(components);
-    const bossInfo = parseBossComponent(components);
+    const bossInfo = embed ? parseBossEmbed(embed) : parseBossComponent(components);
     if (bossInfo) {
       const tierMap = {
         'Tier 1': settings.t1RoleId,

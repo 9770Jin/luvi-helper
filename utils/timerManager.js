@@ -131,7 +131,14 @@ const triggerNotification = async (client, reminderId) => {
                 if (shouldForceDm || !sentToChannel) {
                     const user = await client.users.fetch(reminder.userId);
                     if (user) {
-                        await user.send(reminder.reminderMessage);
+                        let finalMessage = reminder.reminderMessage;
+
+                        // Append "Jump to Channel" link for non-raid reminders if we have IDs
+                        if (reminder.type !== 'raid' && reminder.guildId && reminder.channelId) {
+                            finalMessage += `in (https://discord.com/channels/${reminder.guildId}/${reminder.channelId})`;
+                        }
+
+                        await user.send(finalMessage);
                         const logSuffix = sentToChannel === false && !shouldForceDm ? " (Fallback from Channel)" : "";
                         await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId} via DM${logSuffix}`);
                     }

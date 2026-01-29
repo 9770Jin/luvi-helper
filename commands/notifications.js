@@ -64,7 +64,7 @@ module.exports = {
 
       let replyContent;
       if (type === 'dmNotifications') {
-        replyContent = `You will now ${enabled ? 'receive' : 'stop receiving'} stamina and expedition reminders in your DMs.`;
+        replyContent = `You will now ${enabled ? 'receive' : 'stop receiving'} the reminders in your DMs.`;
       } else {
         replyContent = `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
       }
