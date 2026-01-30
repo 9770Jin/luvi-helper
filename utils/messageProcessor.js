@@ -117,6 +117,7 @@ async function processMessage(message, oldMessage = null) {
     }
 
     const isResendFromEmbed = embed?.title?.endsWith("Expedition Resend Results");
+    const expInfoFromComp = parseExpeditionComponent(components);
     const isResendFromComp = expInfoFromComp?.isResend;
 
     if (isResendFromEmbed || isResendFromComp) {
