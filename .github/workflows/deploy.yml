@@ -34,7 +34,7 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             # Navigate to your bot directory
-            cd /var/www/c1bc1324-2fb9-4488-9953-ff8ada851782/discord_bots/luvi-helper
+            cd /var/www/4f6b95ca-8fec-4715-a271-ea853fa6f952/discord_bots/luvi-helper
             
             # Pull latest changes from Git
             git pull
