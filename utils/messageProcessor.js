@@ -167,7 +167,7 @@ async function processMessage(message, oldMessage = null) {
             channelId: message.channel.id,
             remindAt,
             type: 'expedition',
-            reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+            reminderMessage: `<@${userId}>, your </expeditions:1472170030337626153> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
           });
         } catch (err) {
           console.error(`[ERROR] Failed to set timer for expedition claim: ${err.message}`, err);
@@ -225,7 +225,7 @@ async function processMessage(message, oldMessage = null) {
                 channelId: message.channel.id,
                 remindAt,
                 type: 'expedition',
-                reminderMessage: `<@${userId}>, your </expeditions:1426499105936379922> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+                reminderMessage: `<@${userId}>, your </expeditions:1472170030337626153> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
               });
             } catch (error) {
               console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
@@ -279,7 +279,7 @@ async function processMessage(message, oldMessage = null) {
             channelId: message.channel.id,
             remindAt,
             type: 'raid_spawn',
-            reminderMessage: `<@${userId}>, your raid spawn cooldown is up! You can spawn another raid now </raid spawn:1404667045332910220>`
+            reminderMessage: `<@${userId}>, your raid spawn cooldown is up! You can spawn another raid now </raid spawn:1472170030723764364>`
           });
         } catch (error) {
           if (error.code === 11000) {
@@ -314,7 +314,7 @@ async function processMessage(message, oldMessage = null) {
                 channelId: message.channel.id,
                 remindAt,
                 type: 'card_drop',
-                reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using </drop:1464548731549384900>`
+                reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using </drop:1472170029905874977>`
               });
             } catch (error) {
               if (error.code === 11000) {

@@ -72,7 +72,7 @@ module.exports = {
                         channelId: channel.id,
                         remindAt,
                         type: 'stamina',
-                        reminderMessage: `<@${user.id}>, your stamina has regenerated to ${percentage}%! Time to </clash:1426499105936379915>`
+                        reminderMessage: `<@${user.id}>, your stamina has regenerated to ${percentage}%! Time to </clash:1472170030228570113>`
                     });
 
                     try {
