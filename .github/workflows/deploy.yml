@@ -12,19 +12,9 @@ jobs:
     steps:
       # 1. Checkout the repository code
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      # 2. Set up Node.js environment
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18' 
-
-      # 3. Install dependencies 
-      - name: Install dependencies locally
-        run: npm install
-
-      # 4. Deploy to VPS
+      # 2. Deploy to VPS
       - name: Deploy to VPS
         uses: appleboy/ssh-action@master
         with:
@@ -33,17 +23,29 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            # Navigate to your bot directory
+            # Load NVM 
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            # Use correct Node version
+            nvm use 24
+
+            # Go to bot directory
             cd /var/www/ddf0d6da-f66f-464c-8fc6-13c903f61baa/discord_bots/luvi-helper
-            
-            # Pull latest changes from Git
-            git pull
-            
-            # Install any new dependencies
-            npm install
-            
-            # Restart bot with PM2, or start if not running
-            pm2 restart luvi-helper || pm2 start index.js --name luvi-helper
-            
-            # Save PM2 process list for auto-start on server reboot
+
+            # Pull latest code
+            git pull origin main
+
+            # Install dependencies
+            npm install --production
+
+            # Restart / start bot 
+            pm2 describe luvi-helper > /dev/null
+            if [ $? -eq 0 ]; then
+              pm2 restart luvi-helper
+            else
+              pm2 start index.js --name luvi-helper
+            fi
+
+            # Save PM2 state
             pm2 save
